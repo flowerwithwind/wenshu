@@ -22,7 +22,7 @@
 
 ### 1. 环境准备
 
-- Python 3.11
+- Python 3.11+ (推荐使用 Conda)
 - Node.js 18+
 
 ### 2. 配置 API Key
@@ -37,8 +37,8 @@ DEEPSEEK_API_KEY=sk-your-key-here
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate   # Windows: .\venv\Scripts\Activate.ps1
+conda create -n wenshu python=3.11 -y
+conda activate wenshu
 pip install -r requirements.txt
 python scripts/preprocess.py      # 生成数据集并构建向量索引
 python -m app.main                # http://localhost:8000
