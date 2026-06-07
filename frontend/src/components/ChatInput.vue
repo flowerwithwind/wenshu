@@ -60,7 +60,7 @@ const inputText = ref('')
 const textareaRef = ref(null)
 
 const placeholder = computed(() =>
-  props.disabled ? '正在生成回答...' : '输入您的问题，基于数据提问...'
+  props.disabled ? '正在生成回答...' : '问点电商数据：比如销售额排名、会员分析、退款率...'
 )
 
 function autoResize() {

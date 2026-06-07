@@ -1,245 +1,304 @@
 """
-数据预处理脚本 (纯Python版) - 生成公开数据集CSV文件
+数据预处理脚本 v3.0 — 电商数据集（5表星型模型）
 
-数据集来源:
-  1. 中国宏观经济数据集（2010-2024，国家统计局公开数据）
-  2. 中国人口数据集（2010-2024，国家统计局公开数据）
-  3. 企业营收数据集（2023，公开年报数据）
-  4. 中国各省GDP数据集（2023，省统计局公开数据）
+表结构:
+  1. customers       — 客户维度表 (100行)
+  2. products        — 商品维度表 (40行)
+  3. orders          — 订单事实表 (300行, 含NULL)
+  4. monthly_targets — 月度销售目标 (192行)
+  5. refunds         — 退款记录表 (25行, 稀疏)
+
+复杂度:
+  - INNER JOIN / LEFT JOIN / 多表关联
+  - 子查询 / CTE / 窗口函数 / HAVING
+  - NULL值处理 / CASE WHEN
+  - 同比环比 / 达成率
 
 使用方法:
   python scripts/preprocess.py
 """
-import os
-import sys
-import csv
+import os, sys, csv, random
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from app.config import DATASET_DIR
 
+random.seed(42)
 
 def write_csv(filepath, headers, rows):
-    """写入CSV文件"""
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(headers)
         writer.writerows(rows)
-
+    print(f"  [OK] {os.path.basename(filepath)} ({len(rows)} 行)")
 
 # ============================================================
-# 数据集1: 中国宏观经济数据 (2010-2024)
+# 数据集1: customers — 客户维度表 (100行)
 # ============================================================
-def generate_gdp():
-    headers = [
-        "年份", "GDP总量_万亿元", "GDP增速_百分比",
-        "第一产业_万亿元", "第二产业_万亿元", "第三产业_万亿元",
-        "人均GDP_元", "社会消费品零售总额_万亿元",
-        "进出口总额_万亿元", "固定资产投资_万亿元"
-    ]
-    rows = [
-        [2010, 41.21, 10.6, 3.93, 19.16, 18.12, 30808, 15.70, 20.17, 27.81],
-        [2011, 48.79, 9.6, 4.48, 22.70, 21.61, 36302, 18.39, 23.64, 31.15],
-        [2012, 53.86, 7.9, 5.09, 24.46, 24.31, 39874, 21.03, 24.42, 37.47],
-        [2013, 59.30, 7.8, 5.53, 26.20, 27.57, 43684, 23.78, 25.83, 44.71],
-        [2014, 64.36, 7.4, 5.83, 27.76, 30.77, 46912, 26.24, 26.43, 51.28],
-        [2015, 68.89, 7.0, 6.09, 28.21, 34.59, 49922, 28.66, 24.55, 56.20],
-        [2016, 74.64, 6.8, 6.37, 29.58, 38.69, 53783, 31.24, 24.33, 60.65],
-        [2017, 83.20, 6.9, 6.47, 33.16, 43.57, 59592, 34.73, 27.79, 64.12],
-        [2018, 91.93, 6.7, 6.47, 36.49, 48.97, 65534, 38.10, 30.51, 63.56],
-        [2019, 98.65, 6.0, 7.05, 38.07, 53.53, 70098, 41.16, 31.54, 55.15],
-        [2020, 101.36, 2.2, 7.78, 38.43, 55.15, 71828, 39.20, 32.16, 51.90],
-        [2021, 114.92, 8.4, 8.31, 45.19, 61.42, 81370, 44.08, 39.10, 54.45],
-        [2022, 121.02, 3.0, 8.83, 47.48, 64.71, 85698, 43.97, 42.07, 57.96],
-        [2023, 126.06, 5.2, 8.98, 48.21, 68.87, 89358, 47.15, 41.76, 51.50],
-        [2024, 134.91, 5.0, 9.14, 49.27, 76.50, 95794, 48.79, 43.85, 52.41],
-    ]
-    filepath = os.path.join(DATASET_DIR, "china_gdp_2010_2024.csv")
-    write_csv(filepath, headers, rows)
-    print(f"  [OK] 生成: china_gdp_2010_2024.csv ({len(rows)} 行)")
+def generate_customers():
+    surnames = ["王","李","张","刘","陈","杨","黄","赵","周","吴","徐","孙","马","朱","胡","郭","何","高","林","郑"]
+    given_names_m = ["伟","强","磊","军","勇","杰","涛","明","超","华","建国","志强","文博","子涵","浩然"]
+    given_names_f = ["芳","敏","静","丽","娟","秀英","艳","慧","娜","霞","雪","玲","桂英","婷","欣怡"]
+    provinces = ["广东","江苏","山东","浙江","北京","上海","四川","湖北","福建","湖南"]
+    levels = ["金牌","银牌","铜牌","普通"]
+    level_weights = [0.08, 0.22, 0.30, 0.40]
+
+    headers = ["客户ID","姓名","年龄","性别","注册日期","会员等级","所在省份"]
+    rows = []
+    for i in range(1, 101):
+        cid = f"C{str(i).zfill(3)}"
+        gender = random.choice(["男","女"])
+        if gender == "男":
+            name = random.choice(surnames) + random.choice(given_names_m)
+        else:
+            name = random.choice(surnames) + random.choice(given_names_f)
+        age = random.randint(18, 65)
+        reg_date = datetime(2020,1,1) + timedelta(days=random.randint(0,1500))
+        level = random.choices(levels, weights=level_weights, k=1)[0]
+        province = random.choice(provinces)
+        rows.append([cid, name, age, gender, reg_date.strftime("%Y-%m-%d"), level, province])
+    write_csv(os.path.join(DATASET_DIR, "customers.csv"), headers, rows)
     return len(rows)
 
+# ============================================================
+# 数据集2: products — 商品维度表 (40行)
+# ============================================================
+def generate_products():
+    product_data = {
+        "电子": [
+            ("P001","智能手机Pro",2499.00,4299.00),
+            ("P002","轻薄笔记本",3899.00,6499.00),
+            ("P003","无线耳机",149.00,299.00),
+            ("P004","智能手表",599.00,1099.00),
+            ("P005","平板电脑",1899.00,3299.00),
+        ],
+        "服装": [
+            ("P006","纯棉T恤",29.00,89.00),
+            ("P007","牛仔裤",69.00,199.00),
+            ("P008","羽绒服",199.00,599.00),
+            ("P009","运动鞋",99.00,299.00),
+            ("P010","连衣裙",79.00,259.00),
+        ],
+        "食品": [
+            ("P011","有机大米5kg",19.00,49.90),
+            ("P012","橄榄油礼盒",49.00,128.00),
+            ("P013","坚果大礼包",39.00,99.00),
+            ("P014","进口奶粉",69.00,168.00),
+            ("P015","茶叶礼盒",59.00,149.00),
+        ],
+        "家居": [
+            ("P016","乳胶枕",79.00,199.00),
+            ("P017","蚕丝被",199.00,499.00),
+            ("P018","智能台灯",89.00,229.00),
+            ("P019","空气净化器",599.00,1299.00),
+            ("P020","收纳柜",149.00,399.00),
+        ],
+        "美妆": [
+            ("P021","保湿面霜",49.00,129.00),
+            ("P022","防晒霜SPF50",39.00,99.00),
+            ("P023","口红礼盒",59.00,169.00),
+            ("P024","精华液",99.00,259.00),
+            ("P025","眼霜",69.00,189.00),
+        ],
+        "运动": [
+            ("P026","瑜伽垫",29.00,79.00),
+            ("P027","跑步机",1299.00,2999.00),
+            ("P028","哑铃套装",149.00,399.00),
+            ("P029","运动手环",99.00,249.00),
+            ("P030","羽毛球拍",79.00,199.00),
+        ],
+        "图书": [
+            ("P031","Python编程入门",29.00,69.00),
+            ("P032","数据分析实战",39.00,89.00),
+            ("P033","经济学原理",49.00,99.00),
+            ("P034","心理学与生活",35.00,79.00),
+            ("P035","百年孤独",29.00,55.00),
+        ],
+        "母婴": [
+            ("P036","纸尿裤大包",39.00,89.00),
+            ("P037","婴儿推车",299.00,699.00),
+            ("P038","儿童安全座椅",399.00,899.00),
+            ("P039","早教益智玩具",79.00,199.00),
+            ("P040","婴儿奶粉",99.00,239.00),
+        ],
+    }
+    brands = {"电子":"TechPro","服装":"StyleFit","食品":"GreenFarm","家居":"HomeEase","美妆":"BeautyGlow","运动":"SportMax","图书":"ReadWorld","母婴":"BabyCare"}
 
-# ============================================================
-# 数据集2: 中国人口数据 (2010-2024)
-# ============================================================
-def generate_population():
-    headers = [
-        "年份", "总人口_万人", "城镇人口_万人", "农村人口_万人",
-        "城镇化率_百分比", "出生人口_万人"
-    ]
-    rows = [
-        [2010, 134091, 66978, 67113, 49.95, 1592],
-        [2011, 134735, 69079, 65656, 51.27, 1604],
-        [2012, 135404, 71182, 64222, 52.57, 1635],
-        [2013, 136072, 73111, 62961, 53.73, 1640],
-        [2014, 136782, 74916, 61866, 54.77, 1687],
-        [2015, 137462, 77116, 60346, 56.10, 1655],
-        [2016, 138271, 79298, 58973, 57.35, 1786],
-        [2017, 139008, 81347, 57661, 58.52, 1723],
-        [2018, 139538, 83137, 56401, 59.58, 1523],
-        [2019, 140005, 84843, 55162, 60.60, 1465],
-        [2020, 141178, 90220, 50958, 63.89, 1200],
-        [2021, 141260, 91425, 49835, 64.72, 1062],
-        [2022, 141175, 92071, 49104, 65.22, 956],
-        [2023, 140967, 93267, 47700, 66.16, 902],
-        [2024, 140828, 94350, 46478, 66.99, 954],
-    ]
-    filepath = os.path.join(DATASET_DIR, "china_population_2010_2024.csv")
-    write_csv(filepath, headers, rows)
-    print(f"  [OK] 生成: china_population_2010_2024.csv ({len(rows)} 行)")
+    headers = ["商品ID","商品名称","品类","品牌","成本价_元","售价_元","上架日期"]
+    rows = []
+    # 生成随机上架日期
+    all_dates = []
+    for _ in range(40):
+        d = datetime(2022,1,1) + timedelta(days=random.randint(0,365))
+        all_dates.append(d)
+    all_dates.sort()
+
+    idx = 0
+    for cat, items in product_data.items():
+        for pid, pname, cost, price in items:
+            rows.append([pid, pname, cat, brands[cat], cost, price, all_dates[idx].strftime("%Y-%m-%d")])
+            idx += 1
+    write_csv(os.path.join(DATASET_DIR, "products.csv"), headers, rows)
     return len(rows)
 
+# ============================================================
+# 数据集3: orders — 订单事实表 (300行, 含NULL)
+# ============================================================
+def generate_orders():
+    # 为生成可控数据，手动构造订单列表
+    provinces = ["广东","江苏","山东","浙江","北京","上海","四川","湖北","福建","湖南"]
+    payments = ["微信支付","支付宝","银行卡","货到付款"]
+    payment_weights = [0.40, 0.35, 0.15, 0.10]
+    statuses = ["已完成","已取消","已退款"]
+    status_weights = [0.88, 0.05, 0.07]
 
-# ============================================================
-# 数据集3: 企业营收数据 (2023)
-# ============================================================
-def generate_company():
-    headers = [
-        "公司名称", "行业", "2023营收_亿元", "2023净利润_亿元",
-        "员工人数_万人", "成立年份", "总部城市"
-    ]
-    rows = [
-        ["华为技术", "通信设备", 7042, 870, 20.7, 1987, "深圳"],
-        ["阿里巴巴", "互联网", 9412, 728, 24.5, 1999, "杭州"],
-        ["腾讯控股", "互联网", 6090, 1152, 10.5, 1998, "深圳"],
-        ["字节跳动", "互联网", 8635, 2015, 15.0, 2012, "北京"],
-        ["京东集团", "电子商务", 10847, 242, 62.0, 1998, "北京"],
-        ["美团", "本地生活", 2767, 1388, 12.0, 2010, "北京"],
-        ["比亚迪", "新能源汽车", 6023, 300, 70.0, 1995, "深圳"],
-        ["宁德时代", "新能源", 4009, 441, 11.6, 2011, "宁德"],
-        ["中国平安", "金融保险", 10319, 856, 34.0, 1988, "深圳"],
-        ["贵州茅台", "白酒", 1506, 747, 3.3, 1999, "仁怀"],
-        ["工商银行", "银行", 8431, 3640, 42.0, 1984, "北京"],
-        ["中国移动", "电信", 10093, 1318, 45.0, 1997, "北京"],
-        ["小米集团", "消费电子", 2710, 193, 3.5, 2010, "北京"],
-        ["百度集团", "互联网", 1346, 203, 3.9, 2000, "北京"],
-        ["网易", "互联网", 1035, 294, 3.2, 1997, "杭州"],
-    ]
-    filepath = os.path.join(DATASET_DIR, "company_revenue_2023.csv")
-    write_csv(filepath, headers, rows)
-    print(f"  [OK] 生成: company_revenue_2023.csv ({len(rows)} 行)")
+    # 预定义产品ID列表来自products表
+    product_ids = [f"P{str(i).zfill(3)}" for i in range(1, 41)]
+
+    headers = ["订单ID","日期","客户ID","商品ID","数量","售价_元","订单金额_元","折扣金额_元","实付金额_元","支付方式","订单状态","收货省份"]
+    rows = []
+
+    for i in range(1, 301):
+        oid = f"ORD{str(i).zfill(4)}"
+        # 日期: 2023-01-01 ~ 2024-12-31
+        d = datetime(2023,1,1) + timedelta(days=random.randint(0,730))
+        cid = f"C{str(random.randint(1,100)).zfill(3)}"
+        pid = random.choice(product_ids)
+        qty = random.choices([1,2,3,4,5], weights=[0.40,0.25,0.15,0.10,0.10], k=1)[0]
+
+        # 售价根据商品估算 (简化: 用随机值模拟不同价格段)
+        # 电子产品价格高，图书价格低
+        cat_num = int(pid[1:])  # 1-40
+        if cat_num <= 5:
+            price = round(random.uniform(200, 5000), 2)
+        elif cat_num <= 10:
+            price = round(random.uniform(50, 500), 2)
+        elif cat_num <= 15:
+            price = round(random.uniform(20, 150), 2)
+        elif cat_num <= 20:
+            price = round(random.uniform(80, 1200), 2)
+        elif cat_num <= 25:
+            price = round(random.uniform(40, 250), 2)
+        elif cat_num <= 30:
+            price = round(random.uniform(30, 2500), 2)
+        elif cat_num <= 35:
+            price = round(random.uniform(25, 90), 2)
+        else:
+            price = round(random.uniform(40, 800), 2)
+
+        amount = round(price * qty, 2)
+
+        # 折扣金额: 30%概率有折扣, 70%为NULL
+        if random.random() < 0.30:
+            discount = round(random.uniform(5, amount*0.3), 2)
+            paid = round(amount - discount, 2)
+        else:
+            discount = None
+            paid = amount
+
+        payment = random.choices(payments, weights=payment_weights, k=1)[0]
+        status = random.choices(statuses, weights=status_weights, k=1)[0]
+        province = random.choice(provinces)
+
+        row = [oid, d.strftime("%Y-%m-%d"), cid, pid, qty, price, amount,
+               discount if discount is not None else "",  # NULL作为空字符串（类型推断为REAL后为NULL）
+               paid, payment, status, province]
+        rows.append(row)
+
+    write_csv(os.path.join(DATASET_DIR, "orders.csv"), headers, rows)
+
+    # 统计
+    null_discounts = sum(1 for r in rows if r[7] == "")
+    print(f"      折扣为NULL的订单: {null_discounts}/{len(rows)}")
     return len(rows)
 
+# ============================================================
+# 数据集4: monthly_targets — 月度销售目标 (192行)
+# ============================================================
+def generate_monthly_targets():
+    categories = ["电子","服装","食品","家居","美妆","运动","图书","母婴"]
+    # 目标按照品类差异化设定，6月和11月有促销目标更高
+    base_targets = {"电子": 450, "服装": 280, "食品": 190, "家居": 320, "美妆": 250, "运动": 240, "图书": 120, "母婴": 210}
 
-# ============================================================
-# 数据集4: 中国各省GDP数据 (2023)
-# ============================================================
-def generate_regional():
-    headers = ["省份", "GDP_亿元", "增速_百分比", "人均GDP_元"]
-    rows = [
-        ["广东", 135673, 4.8, 106986],
-        ["江苏", 128222, 5.8, 150487],
-        ["山东", 92069, 6.0, 90863],
-        ["浙江", 82553, 6.0, 125043],
-        ["河南", 61345, 4.1, 68335],
-        ["四川", 60132, 6.0, 71865],
-        ["湖北", 55803, 6.0, 95538],
-        ["福建", 54355, 4.5, 129749],
-        ["湖南", 50013, 4.6, 75938],
-        ["上海", 47219, 5.0, 190270],
-        ["安徽", 47050, 5.8, 76830],
-        ["河北", 43944, 5.5, 59332],
-        ["北京", 43761, 5.2, 200278],
-        ["陕西", 33786, 4.3, 85448],
-        ["江西", 32200, 4.1, 71227],
-    ]
-    filepath = os.path.join(DATASET_DIR, "regional_gdp_2023.csv")
-    write_csv(filepath, headers, rows)
-    print(f"  [OK] 生成: regional_gdp_2023.csv ({len(rows)} 行)")
+    headers = ["年份","月份","品类","目标销售额_万元"]
+    rows = []
+    for year in [2023, 2024]:
+        for month in range(1, 13):
+            for cat in categories:
+                base = base_targets[cat]
+                if year == 2024:
+                    base *= random.uniform(1.05, 1.20)  # 2024年目标增长
+                if month == 6:
+                    base *= random.uniform(1.8, 2.3)    # 618促销月
+                elif month == 11:
+                    base *= random.uniform(2.0, 2.7)    # 双11促销月
+                elif month == 12:
+                    base *= random.uniform(1.2, 1.5)    # 年末冲刺
+                target = round(base, 2)
+                rows.append([year, month, cat, target])
+    write_csv(os.path.join(DATASET_DIR, "monthly_targets.csv"), headers, rows)
     return len(rows)
 
-
 # ============================================================
-# 数据集说明文件
+# 数据集5: refunds — 退款记录表 (25行, 稀疏)
 # ============================================================
-def generate_readme():
-    content = """# 智能问数系统 - 数据集说明
+def generate_refunds():
+    reasons = ["质量问题","物流损坏","不想要了","尺寸不合适","商品与描述不符","发错货",None]
+    reason_weights = [0.15, 0.10, 0.25, 0.20, 0.15, 0.10, 0.05]  # 5%为NULL原因
 
-本知识库包含以下公开数据集，可用于数据问答和统计分析：
+    headers = ["退款ID","订单ID","退款金额_元","退款日期","退款原因"]
+    rows = []
+    used_orders = set()
+    for i in range(1, 26):
+        rid = f"REF{str(i).zfill(3)}"
+        # 随机引用订单ID ORD0001~ORD0300
+        while True:
+            oid = f"ORD{str(random.randint(1, 300)).zfill(4)}"
+            if oid not in used_orders:
+                used_orders.add(oid)
+                break
+        # 退款日期: 在原订单日期后1-15天 (这里简化用随机日期)
+        ref_date = datetime(2023,1,15) + timedelta(days=random.randint(0,715))
+        amount = round(random.uniform(30, 3000), 2)
+        reason = random.choices(reasons, weights=reason_weights, k=1)[0]
+        rows.append([rid, oid, amount, ref_date.strftime("%Y-%m-%d"), reason if reason else ""])
 
-## 1. 中国宏观经济数据 (2010-2024)
-- 数据内容: GDP总量、GDP增速、三大产业产值、人均GDP、社会消费品零售总额、进出口总额、固定资产投资
-- 数据量: 15 个年份
-- 数据来源: 国家统计局公开数据
-
-关键数值摘要:
-- 2024年GDP总量: 134.91万亿元
-- 2024年GDP增速: 5.0%
-- 2024年人均GDP: 95,794元
-- 2024年社会消费品零售总额: 48.79万亿元
-- 2024年进出口总额: 43.85万亿元
-- 2010-2024年GDP年均增速约为6.5%
-- 2020年受疫情影响GDP增速降至2.2%，为历年最低
-
-## 2. 中国人口数据 (2010-2024)
-- 数据内容: 总人口、城镇人口、农村人口、城镇化率、出生人口
-- 数据量: 15 个年份
-- 数据来源: 国家统计局公开数据
-
-关键数值摘要:
-- 2024年总人口: 140,828万人
-- 2024年城镇化率: 66.99%
-- 2024年城镇人口: 94,350万人
-- 2024年出生人口: 954万人
-- 2022年总人口首次出现负增长
-- 城镇化率从2010年49.95%增长至2024年66.99%，提高17个百分点
-
-## 3. 知名企业营收数据 (2023)
-- 数据内容: 15家知名企业的营收、净利润、员工人数、成立年份、总部城市等
-- 数据来源: 各公司公开年报及财经媒体
-
-关键数值摘要:
-- 营收超万亿企业: 京东集团(10,847亿元)、中国平安(10,319亿元)、中国移动(10,093亿元)
-- 净利润最高: 工商银行(3,640亿元)
-- 员工最多: 比亚迪(70万人)，其次京东(62万人)
-- 互联网企业营收: 阿里巴巴9,412亿元、字节跳动8,635亿元、腾讯6,090亿元
-- 新能源代表: 比亚迪6,023亿元、宁德时代4,009亿元
-
-## 4. 中国各省GDP数据 (2023)
-- 数据内容: 15个省份的GDP总量、经济增速、人均GDP
-- 数据来源: 各省统计局公开数据
-
-关键数值摘要:
-- GDP总量前三: 广东(135,673亿元)、江苏(128,222亿元)、山东(92,069亿元)
-- 人均GDP最高: 北京(200,278元)、上海(190,270元)、江苏(150,487元)
-- GDP万亿省份(前15): 全部超过3万亿元
-- 经济增速最快(6.0%): 山东、浙江、四川、湖北
-"""
-    filepath = os.path.join(DATASET_DIR, "data_readme.txt")
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
-    print(f"  [OK] 生成: data_readme.txt")
+    write_csv(os.path.join(DATASET_DIR, "refunds.csv"), headers, rows)
+    null_reasons = sum(1 for r in rows if r[4] == "")
+    print(f"      退款原因为NULL的记录: {null_reasons}/{len(rows)}")
+    return len(rows)
 
 
 def main():
     print("=" * 50)
-    print("  智能问数系统 - 数据预处理")
+    print("  智能问数系统 - 数据预处理 v3.0")
+    print("  电商数据集 (5表星型模型)")
     print("=" * 50)
-    print("\n[1/2] 生成公开数据集文件...")
 
     os.makedirs(DATASET_DIR, exist_ok=True)
 
-    c1 = generate_gdp()
-    c2 = generate_population()
-    c3 = generate_company()
-    c4 = generate_regional()
-    generate_readme()
+    n1 = generate_customers()
+    n2 = generate_products()
+    n3 = generate_orders()
+    n4 = generate_monthly_targets()
+    n5 = generate_refunds()
 
-    print(f"\n[2/2] 数据集生成完成!")
-    print("=" * 50)
-    print(f"  GDP数据: {c1} 行")
-    print(f"  人口数据: {c2} 行")
-    print(f"  企业数据: {c3} 行")
-    print(f"  区域GDP: {c4} 行")
+    total = n1 + n2 + n3 + n4 + n5
+    print(f"\n{'='*50}")
+    print(f"  总计: {total} 行数据, 5 张表")
     print(f"  数据集目录: {DATASET_DIR}")
-    print("\n  下一步:")
-    print("    1. 设置 DEEPSEEK_API_KEY 环境变量或修改 backend/.env")
-    print("    2. 安装依赖: pip install -r backend/requirements.txt")
-    print("    3. 启动后端: cd backend && python -m app.main")
-    print("    4. 启动前端: cd frontend && npm run dev")
-
+    print(f"\n  NL2SQL 可测试的复杂查询类型:")
+    print(f"    - INNER JOIN / LEFT JOIN / 多表关联")
+    print(f"    - 子查询 / CTE / 窗口函数")
+    print(f"    - NULL值处理 / COALESCE")
+    print(f"    - GROUP BY + HAVING")
+    print(f"    - 日期范围 / 同比环比")
+    print(f"    - 达成率计算 / CASE WHEN")
+    print(f"\n  下一步:")
+    print(f"    1. pip install -r requirements.txt")
+    print(f"    2. python -m app.main  (启动后端)")
+    print(f"    3. cd ../frontend && npm run dev  (启动前端)")
 
 if __name__ == "__main__":
     main()

@@ -98,6 +98,17 @@
             </div>
             <span class="loading-text">正在分析数据...</span>
           </div>
+
+          <!-- 推荐问题 -->
+          <div v-if="store.recommendedQuestions.length > 0 && !store.isStreaming" class="recommended-questions">
+            <div class="recommend-label">换个问题试试：</div>
+            <button
+              v-for="q in store.recommendedQuestions"
+              :key="q"
+              class="recommend-btn"
+              @click="handleExampleClick(q)"
+            >{{ q }}</button>
+          </div>
         </div>
       </div>
 
@@ -105,6 +116,7 @@
       <div class="input-area">
         <ChatInput
           :disabled="store.isLoading || store.isStreaming"
+          :is-streaming="store.isStreaming"
           @send="handleSend"
           @stop="store.stopStream()"
         />
@@ -131,11 +143,11 @@ const chatAreaRef = ref(null)
 const lastMsg = computed(() => store.lastMessage)
 
 const exampleQuestions = [
-  '2024年中国GDP总量是多少？',
-  '2023年哪些企业营收超过5000亿元？',
-  '中国城镇化率的变化趋势是怎样的？',
-  '2023年哪个省的GDP最高？',
-  '比较阿里巴巴和腾讯的营收和利润',
+  '2024年各月销售额趋势是怎样的？',
+  '销售额排名前5的省份是哪些？',
+  '各会员等级的消费总额对比如何？',
+  '有折扣的订单占比是多少？',
+  '退款率最高的品类是什么？',
 ]
 
 async function checkHealth() {
@@ -152,11 +164,11 @@ function handleNewChat() {
 }
 
 function handleExampleClick(q) {
-  store.send(q)
+  store.sendStream(q)
 }
 
 function handleSend(question) {
-  store.send(question)
+  store.sendStream(question)
   nextTick(() => scrollToBottom())
 }
 
@@ -487,6 +499,39 @@ onMounted(() => {
 .loading-text {
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+/* ===== 推荐问题 ===== */
+.recommended-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  margin-top: 4px;
+}
+
+.recommend-label {
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.recommend-btn {
+  padding: 6px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.recommend-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
 }
 
 /* ===== 输入区 ===== */

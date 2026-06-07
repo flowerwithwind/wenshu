@@ -1,0 +1,446 @@
+{
+  "question_sql_examples": [
+    {
+      "question": "2023年各品类销售额是多少？",
+      "sql": "SELECT STRFTIME('%Y', [日期]) AS 年份, [p].[品类], SUM([o].[订单金额_元]) AS 销售额_元 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] WHERE STRFTIME('%Y', [日期]) = '2023' GROUP BY [p].[品类] ORDER BY 销售额_元 DESC",
+      "tables": ["orders", "products"],
+      "tags": ["JOIN", "聚合", "品类", "销售额"]
+    },
+    {
+      "question": "销售额最高的品类是哪个？",
+      "sql": "SELECT [p].[品类], SUM([o].[订单金额_元]) AS 销售额_元 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] GROUP BY [p].[品类] ORDER BY 销售额_元 DESC LIMIT 1",
+      "tables": ["orders", "products"],
+      "tags": ["JOIN", "聚合", "排序", "最值"]
+    },
+    {
+      "question": "2024年各月销售额趋势？",
+      "sql": "SELECT STRFTIME('%Y-%m', [日期]) AS 月份, SUM([订单金额_元]) AS 销售额_元 FROM [orders] WHERE STRFTIME('%Y', [日期]) = '2024' AND [订单状态] = '已完成' GROUP BY 月份 ORDER BY 月份",
+      "tables": ["orders"],
+      "tags": ["时间序列", "聚合", "趋势"]
+    },
+    {
+      "question": "销售额排名前5的省份是哪些？",
+      "sql": "SELECT [收货省份], SUM([订单金额_元]) AS 销售额_元 FROM [orders] WHERE [订单状态] = '已完成' GROUP BY [收货省份] ORDER BY 销售额_元 DESC LIMIT 5",
+      "tables": ["orders"],
+      "tags": ["排名", "省份", "聚合"]
+    },
+    {
+      "question": "2024年与2023年销售额同比增长了多少？",
+      "sql": "SELECT (SELECT SUM([订单金额_元]) FROM [orders] WHERE STRFTIME('%Y', [日期]) = '2024' AND [订单状态] = '已完成') * 100.0 / (SELECT SUM([订单金额_元]) FROM [orders] WHERE STRFTIME('%Y', [日期]) = '2023' AND [订单状态] = '已完成') - 100 AS 同比增长百分比",
+      "tables": ["orders"],
+      "tags": ["同比", "子查询", "计算"]
+    },
+    {
+      "question": "金牌会员的平均客单价是多少？",
+      "sql": "SELECT [c].[会员等级], AVG([o].[订单金额_元]) AS 平均客单价_元, COUNT(*) AS 订单数 FROM [orders] [o] JOIN [customers] [c] ON [o].[客户ID] = [c].[客户ID] WHERE [c].[会员等级] = '金牌' GROUP BY [c].[会员等级]",
+      "tables": ["orders", "customers"],
+      "tags": ["JOIN", "聚合", "会员", "平均"]
+    },
+    {
+      "question": "各会员等级的消费总额对比？",
+      "sql": "SELECT [c].[会员等级], SUM([o].[订单金额_元]) AS 消费总额_元, COUNT(DISTINCT [o].[客户ID]) AS 客户数, COUNT(*) AS 订单数 FROM [orders] [o] JOIN [customers] [c] ON [o].[客户ID] = [c].[客户ID] WHERE [o].[订单状态] = '已完成' GROUP BY [c].[会员等级] ORDER BY 消费总额_元 DESC",
+      "tables": ["orders", "customers"],
+      "tags": ["JOIN", "聚合", "会员", "对比"]
+    },
+    {
+      "question": "北京地区的客户有哪些？他们各消费了多少？",
+      "sql": "SELECT [c].[客户ID], [c].[姓名], [c].[会员等级], COALESCE(SUM([o].[订单金额_元]), 0) AS 消费总额_元 FROM [customers] [c] LEFT JOIN [orders] [o] ON [c].[客户ID] = [o].[客户ID] AND [o].[订单状态] = '已完成' WHERE [c].[所在省份] = '北京' GROUP BY [c].[客户ID] ORDER BY 消费总额_元 DESC",
+      "tables": ["customers", "orders"],
+      "tags": ["LEFT JOIN", "NULL处理", "省份", "客户"]
+    },
+    {
+      "question": "有折扣的订单占比是多少？",
+      "sql": "SELECT CAST(SUM(CASE WHEN [折扣金额_元] IS NOT NULL THEN 1 ELSE 0 END) AS REAL) * 100.0 / COUNT(*) AS 折扣订单占比_百分比 FROM [orders] WHERE [订单状态] = '已完成'",
+      "tables": ["orders"],
+      "tags": ["NULL处理", "CASE WHEN", "占比"]
+    },
+    {
+      "question": "使用微信支付的订单有多少？占比多少？",
+      "sql": "SELECT [支付方式], COUNT(*) AS 订单数, CAST(COUNT(*) AS REAL) * 100.0 / (SELECT COUNT(*) FROM [orders] WHERE [订单状态] = '已完成') AS 占比_百分比 FROM [orders] WHERE [订单状态] = '已完成' GROUP BY [支付方式] ORDER BY 订单数 DESC",
+      "tables": ["orders"],
+      "tags": ["聚合", "占比", "子查询", "支付"]
+    },
+    {
+      "question": "哪些订单退款了？退款的金额是多少？",
+      "sql": "SELECT [o].[订单ID], [o].[日期], [o].[订单金额_元], [r].[退款金额_元], [r].[退款日期], [r].[退款原因] FROM [orders] [o] INNER JOIN [refunds] [r] ON [o].[订单ID] = [r].[订单ID]",
+      "tables": ["orders", "refunds"],
+      "tags": ["JOIN", "退款", "关联"]
+    },
+    {
+      "question": "退款率最高的品类是什么？",
+      "sql": "SELECT [p].[品类], COUNT(DISTINCT [r].[订单ID]) AS 退款订单数, COUNT(DISTINCT [o].[订单ID]) AS 总订单数, CAST(COUNT(DISTINCT [r].[订单ID]) AS REAL) * 100.0 / COUNT(DISTINCT [o].[订单ID]) AS 退款率_百分比 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] LEFT JOIN [refunds] [r] ON [o].[订单ID] = [r].[订单ID] WHERE [o].[订单状态] IN ('已完成', '已退款') GROUP BY [p].[品类] ORDER BY 退款率_百分比 DESC",
+      "tables": ["orders", "products", "refunds"],
+      "tags": ["多表JOIN", "退款率", "LEFT JOIN"]
+    },
+    {
+      "question": "电子品类2024年各月销售额与目标对比？",
+      "sql": "SELECT CAST(STRFTIME('%m', [o].[日期]) AS INTEGER) AS 月份, SUM([o].[订单金额_元]) AS 实际销售额_元, [mt].[目标销售额_万元] * 10000 AS 目标销售额_元, ROUND(SUM([o].[订单金额_元]) * 100.0 / ([mt].[目标销售额_万元] * 10000), 1) AS 达成率_百分比 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] JOIN [monthly_targets] [mt] ON CAST(STRFTIME('%Y', [o].[日期]) AS INTEGER) = [mt].[年份] AND CAST(STRFTIME('%m', [o].[日期]) AS INTEGER) = [mt].[月份] AND [p].[品类] = [mt].[品类] WHERE [p].[品类] = '电子' AND STRFTIME('%Y', [o].[日期]) = '2024' GROUP BY 月份 ORDER BY 月份",
+      "tables": ["orders", "products", "monthly_targets"],
+      "tags": ["多表JOIN", "达成率", "对比", "目标"]
+    },
+    {
+      "question": "哪些品类未达成月度目标？",
+      "sql": "SELECT [mt].[年份], [mt].[月份], [mt].[品类], [mt].[目标销售额_万元] AS 目标_万元, COALESCE(SUM([o].[订单金额_元]), 0) / 10000.0 AS 实际_万元, ROUND(COALESCE(SUM([o].[订单金额_元]), 0) * 100.0 / ([mt].[目标销售额_万元] * 10000), 1) AS 达成率_百分比 FROM [monthly_targets] [mt] LEFT JOIN [orders] [o] ON CAST(STRFTIME('%Y', [o].[日期]) AS INTEGER) = [mt].[年份] AND CAST(STRFTIME('%m', [o].[日期]) AS INTEGER) = [mt].[月份] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] AND [p].[品类] = [mt].[品类] GROUP BY [mt].[年份], [mt].[月份], [mt].[品类] HAVING 达成率_百分比 < 100 ORDER BY 达成率_百分比",
+      "tables": ["monthly_targets", "orders", "products"],
+      "tags": ["多表JOIN", "HAVING", "达成率", "LEFT JOIN"]
+    },
+    {
+      "question": "毛利率最高的前5款商品是什么？",
+      "sql": "SELECT [p].[商品名称], [p].[品类], [p].[成本价_元], [p].[售价_元], ROUND(([p].[售价_元] - [p].[成本价_元]) * 100.0 / [p].[售价_元], 1) AS 毛利率_百分比, COUNT([o].[订单ID]) AS 销量 FROM [products] [p] LEFT JOIN [orders] [o] ON [p].[商品ID] = [o].[商品ID] AND [o].[订单状态] = '已完成' GROUP BY [p].[商品ID] ORDER BY 毛利率_百分比 DESC LIMIT 5",
+      "tables": ["products", "orders"],
+      "tags": ["LEFT JOIN", "计算列", "毛利率", "排序"]
+    },
+    {
+      "question": "每月销售额与上月的环比增长率？",
+      "sql": "SELECT 月份, 销售额_元, ROUND((销售额_元 - LAG(销售额_元) OVER (ORDER BY 月份)) * 100.0 / LAG(销售额_元) OVER (ORDER BY 月份), 1) AS 环比增长率_百分比 FROM (SELECT STRFTIME('%Y-%m', [日期]) AS 月份, SUM([订单金额_元]) AS 销售额_元 FROM [orders] WHERE [订单状态] = '已完成' GROUP BY 月份) ORDER BY 月份",
+      "tables": ["orders"],
+      "tags": ["窗口函数", "LAG", "环比", "子查询"]
+    },
+    {
+      "question": "销售额在品类内的排名？",
+      "sql": "SELECT [p].[品类], [p].[商品名称], SUM([o].[订单金额_元]) AS 销售额_元, RANK() OVER (PARTITION BY [p].[品类] ORDER BY SUM([o].[订单金额_元]) DESC) AS 品类内排名 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] WHERE [o].[订单状态] = '已完成' GROUP BY [p].[品类], [p].[商品名称] ORDER BY [p].[品类], 品类内排名",
+      "tables": ["orders", "products"],
+      "tags": ["窗口函数", "RANK", "PARTITION"]
+    },
+    {
+      "question": "累计销售额随月份的变化？",
+      "sql": "SELECT 月份, 销售额_元, SUM(销售额_元) OVER (ORDER BY 月份 ROWS UNBOUNDED PRECEDING) AS 累计销售额_元 FROM (SELECT STRFTIME('%Y-%m', [日期]) AS 月份, SUM([订单金额_元]) AS 销售额_元 FROM [orders] WHERE [订单状态] = '已完成' GROUP BY 月份) ORDER BY 月份",
+      "tables": ["orders"],
+      "tags": ["窗口函数", "累计", "RUNNING TOTAL"]
+    },
+    {
+      "question": "2023年销售额超过1万元的客户有多少位？",
+      "sql": "SELECT COUNT(*) AS 高价值客户数 FROM (SELECT [客户ID], SUM([订单金额_元]) AS 消费总额 FROM [orders] WHERE STRFTIME('%Y', [日期]) = '2023' AND [订单状态] = '已完成' GROUP BY [客户ID] HAVING 消费总额 > 10000)",
+      "tables": ["orders"],
+      "tags": ["子查询", "HAVING", "高价值"]
+    },
+    {
+      "question": "各品类的平均订单金额？",
+      "sql": "SELECT [p].[品类], COUNT(*) AS 订单数, ROUND(AVG([o].[订单金额_元]), 2) AS 平均订单金额_元, MAX([o].[订单金额_元]) AS 最高订单金额_元, MIN([o].[订单金额_元]) AS 最低订单金额_元 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] WHERE [o].[订单状态] = '已完成' GROUP BY [p].[品类] ORDER BY 平均订单金额_元 DESC",
+      "tables": ["orders", "products"],
+      "tags": ["JOIN", "聚合", "平均", "最值"]
+    },
+    {
+      "question": "2024年双11期间(11月)的销售额是多少？",
+      "sql": "SELECT SUM([订单金额_元]) AS 双11销售额_元, COUNT(*) AS 订单数 FROM [orders] WHERE STRFTIME('%Y-%m', [日期]) = '2024-11' AND [订单状态] = '已完成'",
+      "tables": ["orders"],
+      "tags": ["时间范围", "聚合", "促销"]
+    },
+    {
+      "question": "不同性别客户的消费偏好品类？",
+      "sql": "SELECT [c].[性别], [p].[品类], SUM([o].[订单金额_元]) AS 销售额_元 FROM [orders] [o] JOIN [customers] [c] ON [o].[客户ID] = [c].[客户ID] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] WHERE [o].[订单状态] = '已完成' GROUP BY [c].[性别], [p].[品类] ORDER BY [c].[性别], 销售额_元 DESC",
+      "tables": ["orders", "customers", "products"],
+      "tags": ["多表JOIN", "聚合", "性别", "品类"]
+    },
+    {
+      "question": "2023年Q1和2024年Q1的销售额对比？",
+      "sql": "SELECT CASE WHEN STRFTIME('%Y', [日期]) = '2023' THEN '2023Q1' ELSE '2024Q1' END AS 季度, SUM([订单金额_元]) AS 销售额_元 FROM [orders] WHERE [订单状态] = '已完成' AND CAST(STRFTIME('%m', [日期]) AS INTEGER) BETWEEN 1 AND 3 AND STRFTIME('%Y', [日期]) IN ('2023', '2024') GROUP BY STRFTIME('%Y', [日期])",
+      "tables": ["orders"],
+      "tags": ["CASE WHEN", "季度", "对比"]
+    },
+    {
+      "question": "各支付方式在不同省份的使用排名？",
+      "sql": "SELECT [收货省份], [支付方式], COUNT(*) AS 使用次数, RANK() OVER (PARTITION BY [收货省份] ORDER BY COUNT(*) DESC) AS 排名 FROM [orders] WHERE [订单状态] = '已完成' GROUP BY [收货省份], [支付方式] ORDER BY [收货省份], 排名",
+      "tables": ["orders"],
+      "tags": ["窗口函数", "RANK", "PARTITION", "支付"]
+    },
+    {
+      "question": "哪些客户在过去一年中没有退款记录？",
+      "sql": "SELECT DISTINCT [c].[客户ID], [c].[姓名], [c].[会员等级] FROM [customers] [c] INNER JOIN [orders] [o] ON [c].[客户ID] = [o].[客户ID] WHERE [c].[客户ID] NOT IN (SELECT DISTINCT [ord].[客户ID] FROM [orders] [ord] INNER JOIN [refunds] [r] ON [ord].[订单ID] = [r].[订单ID])",
+      "tables": ["customers", "orders", "refunds"],
+      "tags": ["NOT IN", "子查询", "排除", "退款"]
+    },
+    {
+      "question": "平均折扣率最高的品类？",
+      "sql": "SELECT [p].[品类], ROUND(AVG(COALESCE([o].[折扣金额_元], 0)) * 100.0 / AVG([o].[订单金额_元]), 1) AS 平均折扣率_百分比 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] WHERE [o].[订单状态] = '已完成' GROUP BY [p].[品类] ORDER BY 平均折扣率_百分比 DESC",
+      "tables": ["orders", "products"],
+      "tags": ["COALESCE", "NULL处理", "折扣率", "聚合"]
+    },
+    {
+      "question": "各品类在2023年和2024年的销售额及增长率？",
+      "sql": "WITH sales AS (SELECT [p].[品类], STRFTIME('%Y', [o].[日期]) AS 年, SUM([o].[订单金额_元]) AS 销售额 FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] WHERE [o].[订单状态] = '已完成' AND STRFTIME('%Y', [o].[日期]) IN ('2023', '2024') GROUP BY [p].[品类], 年) SELECT s2023.品类, s2023.销售额 AS 销售额_2023, s2024.销售额 AS 销售额_2024, ROUND((s2024.销售额 - s2023.销售额) * 100.0 / s2023.销售额, 1) AS 增长率_百分比 FROM sales s2023 JOIN sales s2024 ON s2023.品类 = s2024.品类 AND s2023.年 = '2023' AND s2024.年 = '2024' ORDER BY 增长率_百分比 DESC",
+      "tables": ["orders", "products"],
+      "tags": ["CTE", "WITH", "同比", "增长率"]
+    },
+    {
+      "question": "2024年客单价最高的10位客户是谁？",
+      "sql": "SELECT [c].[姓名], [c].[会员等级], [c].[所在省份], ROUND(AVG([o].[实付金额_元]), 2) AS 客单价_元, COUNT(*) AS 订单数 FROM [orders] [o] JOIN [customers] [c] ON [o].[客户ID] = [c].[客户ID] WHERE STRFTIME('%Y', [o].[日期]) = '2024' AND [o].[订单状态] = '已完成' GROUP BY [o].[客户ID] ORDER BY 客单价_元 DESC LIMIT 10",
+      "tables": ["orders", "customers"],
+      "tags": ["JOIN", "排名", "客单价"]
+    }
+  ],
+  "table_schemas": [
+    {
+      "table": "customers",
+      "description": "客户维度表(100人)，记录客户的基本信息和会员等级",
+      "columns": [
+        {"name": "客户ID", "type": "TEXT", "description": "唯一客户标识，如C001、C020", "range": "C001 ~ C100"},
+        {"name": "姓名", "type": "TEXT", "description": "客户姓名"},
+        {"name": "年龄", "type": "INTEGER", "description": "年龄", "range": "18 ~ 65"},
+        {"name": "性别", "type": "TEXT", "description": "男或女"},
+        {"name": "注册日期", "type": "TEXT", "description": "注册日期，格式YYYY-MM-DD", "range": "2020-01-01 ~ 2024-03-xx"},
+        {"name": "会员等级", "type": "TEXT", "description": "金牌、银牌、铜牌、普通"},
+        {"name": "所在省份", "type": "TEXT", "description": "广东、江苏、山东、浙江、北京、上海、四川、湖北、福建、湖南"}
+      ],
+      "typical_questions": [
+        "金牌会员有哪些？",
+        "北京的客户有多少人？",
+        "各会员等级的占比？",
+        "不同性别客户的年龄分布？"
+      ]
+    },
+    {
+      "table": "products",
+      "description": "商品维度表(40款)，8个品类各5款商品，含成本和售价",
+      "columns": [
+        {"name": "商品ID", "type": "TEXT", "description": "唯一商品标识，P001~P040"},
+        {"name": "商品名称", "type": "TEXT", "description": "商品名称"},
+        {"name": "品类", "type": "TEXT", "description": "电子、服装、食品、家居、美妆、运动、图书、母婴"},
+        {"name": "品牌", "type": "TEXT", "description": "品牌名称"},
+        {"name": "成本价_元", "type": "REAL", "description": "进货成本价(元)", "range": "19 ~ 3899"},
+        {"name": "售价_元", "type": "REAL", "description": "建议零售价(元)", "range": "49.9 ~ 6499"},
+        {"name": "上架日期", "type": "TEXT", "description": "商品上架日期，格式YYYY-MM-DD"}
+      ],
+      "typical_questions": [
+        "毛利率最高的商品？",
+        "各品类有多少商品？",
+        "成本价最低的前5款商品？"
+      ]
+    },
+    {
+      "table": "orders",
+      "description": "订单事实表(2023-2024,300笔)，记录每笔交易详情。折扣金额可能为NULL表示无折扣。可通过客户ID关联customers，商品ID关联products",
+      "columns": [
+        {"name": "订单ID", "type": "TEXT", "description": "唯一订单标识，ORD0001~ORD0300"},
+        {"name": "日期", "type": "TEXT", "description": "下单日期，格式YYYY-MM-DD", "range": "2023-01-01 ~ 2024-12-31"},
+        {"name": "客户ID", "type": "TEXT", "description": "下单客户ID，关联customers表"},
+        {"name": "商品ID", "type": "TEXT", "description": "购买商品ID，关联products表"},
+        {"name": "数量", "type": "INTEGER", "description": "购买数量", "range": "1 ~ 5"},
+        {"name": "售价_元", "type": "REAL", "description": "商品单价(元)"},
+        {"name": "订单金额_元", "type": "REAL", "description": "订单总金额(元)，=售价×数量"},
+        {"name": "折扣金额_元", "type": "REAL", "description": "折扣金额(元)，NULL表示无折扣。约30%订单有折扣"},
+        {"name": "实付金额_元", "type": "REAL", "description": "实际支付金额(元)，=订单金额-折扣金额"},
+        {"name": "支付方式", "type": "TEXT", "description": "微信支付、支付宝、银行卡、货到付款"},
+        {"name": "订单状态", "type": "TEXT", "description": "已完成、已取消、已退款"},
+        {"name": "收货省份", "type": "TEXT", "description": "收货省份"}
+      ],
+      "typical_questions": [
+        "各月销售额趋势？",
+        "折扣订单占比？",
+        "微信支付订单有多少？",
+        "各省份销售额排名？"
+      ]
+    },
+    {
+      "table": "monthly_targets",
+      "description": "月度销售目标表(2023-2024,8品类×24月=192行)，记录每月各品类的销售目标。可与orders通过年份+月份+品类关联计算达成率",
+      "columns": [
+        {"name": "年份", "type": "INTEGER", "description": "目标年份，2023或2024"},
+        {"name": "月份", "type": "INTEGER", "description": "目标月份，1~12"},
+        {"name": "品类", "type": "TEXT", "description": "商品品类"},
+        {"name": "目标销售额_万元", "type": "REAL", "description": "月度销售目标(万元)，6月/11月/12月目标较高(促销月)"}
+      ],
+      "typical_questions": [
+        "各品类达成率？",
+        "目标最高的是哪个月？",
+        "未达成目标的品类有哪些？"
+      ]
+    },
+    {
+      "table": "refunds",
+      "description": "退款记录表(25笔,稀疏)，记录已退款的订单信息。退款原因可能为NULL。关联orders(订单ID)",
+      "columns": [
+        {"name": "退款ID", "type": "TEXT", "description": "唯一退款标识，REF001~REF025"},
+        {"name": "订单ID", "type": "TEXT", "description": "关联的订单ID"},
+        {"name": "退款金额_元", "type": "REAL", "description": "退款金额(元)"},
+        {"name": "退款日期", "type": "TEXT", "description": "退款日期，格式YYYY-MM-DD"},
+        {"name": "退款原因", "type": "TEXT", "description": "质量问题、物流损坏、不想要了、尺寸不合适、商品与描述不符、发错货 或 NULL"}
+      ],
+      "typical_questions": [
+        "退款率是多少？",
+        "退款最多的原因是什么？",
+        "哪些订单退款了？"
+      ]
+    }
+  ],
+  "domain_mappings": [
+    {
+      "term": "高价值客户",
+      "mapping": "消费总额 > 10000",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "促销月",
+      "mapping": "月份 IN (6, 11, 12)",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "618",
+      "mapping": "月份 = 6",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "双11",
+      "mapping": "月份 = 11",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "年末",
+      "mapping": "月份 = 12",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "上半年",
+      "mapping": "月份 BETWEEN 1 AND 6",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "下半年",
+      "mapping": "月份 BETWEEN 7 AND 12",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "Q1",
+      "mapping": "月份 BETWEEN 1 AND 3",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "Q2",
+      "mapping": "月份 BETWEEN 4 AND 6",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "Q3",
+      "mapping": "月份 BETWEEN 7 AND 9",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "Q4",
+      "mapping": "月份 BETWEEN 10 AND 12",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "有效订单",
+      "mapping": "订单状态 = '已完成'",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "成交订单",
+      "mapping": "订单状态 = '已完成'",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "退货",
+      "mapping": "订单状态 = '已退款'",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "毛利率",
+      "mapping": "(售价 - 成本价) / 售价 * 100",
+      "applicable_table": "products"
+    },
+    {
+      "term": "客单价",
+      "mapping": "AVG(订单金额) / AVG(实付金额)",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "达成率",
+      "mapping": "实际销售额 / 目标销售额 * 100",
+      "applicable_table": "orders, monthly_targets"
+    },
+    {
+      "term": "同比增长",
+      "mapping": "(本期 - 去年同期) / 去年同期 * 100",
+      "applicable_table": "orders"
+    },
+    {
+      "term": "环比增长",
+      "mapping": "(本期 - 上期) / 上期 * 100",
+      "applicable_table": "orders"
+    }
+  ],
+  "synonym_mappings": [
+    {
+      "synonyms": ["销售额", "营收", "收入", "营业额", "GMV", "销售金额"],
+      "target_column": "订单金额_元",
+      "table": "orders"
+    },
+    {
+      "synonyms": ["实际支付", "实付", "实收", "支付金额"],
+      "target_column": "实付金额_元",
+      "table": "orders"
+    },
+    {
+      "synonyms": ["折扣", "优惠", "满减", "降价"],
+      "target_column": "折扣金额_元",
+      "table": "orders"
+    },
+    {
+      "synonyms": ["客户", "用户", "消费者", "买家", "顾客"],
+      "target_column": "客户ID",
+      "table": "customers"
+    },
+    {
+      "synonyms": ["会员", "等级", "会员身份", "VIP"],
+      "target_column": "会员等级",
+      "table": "customers"
+    },
+    {
+      "synonyms": ["省份", "省", "地区", "区域", "收货地址"],
+      "target_column": "收货省份",
+      "table": "orders"
+    },
+    {
+      "synonyms": ["省份", "省", "地区", "区域"],
+      "target_column": "所在省份",
+      "table": "customers"
+    },
+    {
+      "synonyms": ["商品", "产品", "货品", "物品"],
+      "target_column": "商品ID",
+      "table": "products"
+    },
+    {
+      "synonyms": ["品类", "类别", "类目", "分类", "种类"],
+      "target_column": "品类",
+      "table": "products"
+    },
+    {
+      "synonyms": ["成本", "进价", "进货价", "采购价"],
+      "target_column": "成本价_元",
+      "table": "products"
+    },
+    {
+      "synonyms": ["售价", "价格", "单价", "零售价", "定价"],
+      "target_column": "售价_元",
+      "table": "products"
+    },
+    {
+      "synonyms": ["付款方式", "支付手段", "结算方式", "付款"],
+      "target_column": "支付方式",
+      "table": "orders"
+    },
+    {
+      "synonyms": ["退款", "退货退款", "退货", "退单"],
+      "target_column": "退款ID",
+      "table": "refunds"
+    },
+    {
+      "synonyms": ["目标", "指标", "KPI", "计划目标", "销售目标"],
+      "target_column": "目标销售额_万元",
+      "table": "monthly_targets"
+    },
+    {
+      "synonyms": ["成交", "成功", "有效"],
+      "target_column": "订单状态",
+      "mapping_value": "已完成",
+      "table": "orders"
+    },
+    {
+      "synonyms": ["销量", "销售数量", "售出数量"],
+      "target_column": "数量",
+      "table": "orders"
+    }
+  ]
+}
