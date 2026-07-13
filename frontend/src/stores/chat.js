@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { sendMessage, sendMessageStream, getHistory, deleteConversation } from '../api'
+import { sendMessage, sendMessageStream, getHistory, getConversation, deleteConversation } from '../api'
 
 export const useChatStore = defineStore('chat', () => {
   // 当前对话
@@ -9,6 +9,9 @@ export const useChatStore = defineStore('chat', () => {
   const isLoading = ref(false)
   const streamingContent = ref('')
   const isStreaming = ref(false)
+
+  // 推荐问题
+  const recommendedQuestions = ref([])
 
   // 历史对话列表
   const conversations = ref([])
@@ -26,6 +29,7 @@ export const useChatStore = defineStore('chat', () => {
     messages.value = []
     streamingContent.value = ''
     isStreaming.value = false
+    recommendedQuestions.value = []
   }
 
   // 发送消息（非流式）
@@ -47,10 +51,13 @@ export const useChatStore = defineStore('chat', () => {
         id: data.id,
         role: 'assistant',
         content: data.answer,
+        question: question,
         sources: data.sources || [],
         chartData: data.chart_data,
         hasNumericData: data.has_numeric_data,
         responseTimeMs: data.response_time_ms,
+        sql: data.sql || '',
+        sqlResult: data.sql_result || null,
         timestamp: data.created_at,
       })
     } catch (err) {
@@ -70,10 +77,13 @@ export const useChatStore = defineStore('chat', () => {
 
   // 流式发送消息
   async function sendStream(question) {
+    recommendedQuestions.value = []
+
     messages.value.push({
       id: Date.now().toString(),
       role: 'user',
       content: question,
+      question: question,
       timestamp: new Date().toISOString(),
     })
 
@@ -86,6 +96,7 @@ export const useChatStore = defineStore('chat', () => {
       id: aiMsgId,
       role: 'assistant',
       content: '',
+      question: question,
       sources: [],
       isStreaming: true,
       timestamp: new Date().toISOString(),
@@ -116,6 +127,20 @@ export const useChatStore = defineStore('chat', () => {
               }
               if (data.done) {
                 currentConversationId.value = data.conversation_id
+                const msg = messages.value.find(m => m.id === aiMsgId)
+                if (msg) {
+                  msg.sources = data.sources || []
+                  msg.sql = data.sql || ''
+                  msg.sqlResult = data.sql_result || null
+                  msg.responseTimeMs = data.response_time_ms || 0
+                  msg.chartData = data.chart_data || null
+                  msg.hasNumericData = data.has_numeric_data || false
+                  // 从回答内容中移除 chart_data 代码块
+                  msg.content = msg.content.replace(/```chart_data\n[\s\S]*?\n```/g, '').trim()
+                }
+              }
+              if (data.recommended_questions) {
+                recommendedQuestions.value = data.recommended_questions
               }
             } catch {}
           }
@@ -146,6 +171,7 @@ export const useChatStore = defineStore('chat', () => {
       streamController.abort()
       streamController = null
       isStreaming.value = false
+      recommendedQuestions.value = []
       const lastMsg = messages.value[messages.value.length - 1]
       if (lastMsg && lastMsg.isStreaming) {
         lastMsg.isStreaming = false
@@ -163,8 +189,33 @@ export const useChatStore = defineStore('chat', () => {
 
   // 加载指定对话
   async function loadConversation(convId) {
-    // 暂不实现从服务端加载详细历史
-    currentConversationId.value = convId
+    try {
+      const { data } = await getConversation(convId)
+      currentConversationId.value = convId
+      messages.value = []
+      for (const msg of data.messages || []) {
+        // 用户消息
+        messages.value.push({
+          id: msg.id,
+          role: 'user',
+          content: msg.question,
+          timestamp: msg.created_at,
+        })
+        // AI 回复
+        messages.value.push({
+          id: (msg.id || '') + '_reply',
+          role: 'assistant',
+          content: msg.answer,
+          question: msg.question,
+          sql: msg.sql || '',
+          sqlResult: msg.sql_result || null,
+          sources: msg.sources || [],
+          timestamp: msg.created_at,
+        })
+      }
+    } catch {
+      console.error('加载对话失败')
+    }
   }
 
   // 删除对话
@@ -184,6 +235,7 @@ export const useChatStore = defineStore('chat', () => {
     isLoading,
     streamingContent,
     isStreaming,
+    recommendedQuestions,
     conversations,
     lastMessage,
     newConversation,

@@ -30,7 +30,7 @@
       <div class="msg-content" v-html="renderedContent"></div>
 
       <!-- 流式光标 -->
-      <span v-if="message.isStreaming" class="stream-cursor">|</span>
+      <span v-if="message.isStreaming" class="streaming-cursor"></span>
 
       <!-- 数据图表 -->
       <DataChart
@@ -38,10 +38,38 @@
         :chartData="message.chartData"
       />
 
+      <!-- 问数流程追踪 -->
+      <WorkflowTrace
+        v-if="message.role === 'assistant'"
+        :message="message"
+      />
+
       <!-- 来源引用 -->
       <SourceCitation
-        v-if="message.sources && message.sources.length > 0"
+        v-if="message.sources && message.sources.length > 0 && !message.sql"
         :sources="message.sources"
+      />
+
+      <!-- 导出按钮 -->
+      <div v-if="message.sqlResult && message.sqlResult.rows && message.sqlResult.rows.length > 0" class="export-actions">
+        <button class="btn-export" @click="exportResult('csv')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          导出CSV
+        </button>
+        <button class="btn-export" @click="exportResult('xlsx')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          导出Excel
+        </button>
+      </div>
+
+      <!-- 用户反馈 -->
+      <FeedbackBar
+        v-if="message.role === 'assistant' && !message.isStreaming"
+        :messageId="message.id"
       />
     </div>
   </div>
@@ -52,10 +80,15 @@ import { computed } from 'vue'
 import MarkdownIt from 'markdown-it'
 import DataChart from './DataChart.vue'
 import SourceCitation from './SourceCitation.vue'
+import WorkflowTrace from './WorkflowTrace.vue'
+import FeedbackBar from './FeedbackBar.vue'
+import { useChatStore } from '../stores/chat'
 
 const props = defineProps({
   message: { type: Object, required: true },
 })
+
+const store = useChatStore()
 
 const md = new MarkdownIt({
   html: false,
@@ -79,6 +112,14 @@ function formatTime(ts) {
     return ''
   }
 }
+
+function exportResult(format) {
+  const convId = store.currentConversationId
+  const msgId = props.message.id
+  if (!convId || !msgId) return
+  const url = `/api/export?conversation_id=${encodeURIComponent(convId)}&message_id=${encodeURIComponent(msgId)}&format=${format}`
+  window.open(url, '_blank')
+}
 </script>
 
 <style scoped>
@@ -86,7 +127,12 @@ function formatTime(ts) {
   display: flex;
   gap: 12px;
   padding: 16px 0;
-  animation: fadeIn 0.3s ease;
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .chat-message + .chat-message {
@@ -230,11 +276,38 @@ function formatTime(ts) {
   font-weight: 600;
 }
 
-.stream-cursor {
-  display: inline-block;
-  animation: pulse 1s infinite;
+.streaming-cursor::after {
+  content: '▍';
+  animation: blink 1s step-end infinite;
   color: var(--primary);
-  font-weight: bold;
-  margin-left: 2px;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.export-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-export:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
 }
 </style>

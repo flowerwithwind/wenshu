@@ -1,37 +1,40 @@
 """
 向量存储模块 - 支持 ChromaDB 和 FAISS 两种后端
 """
+from __future__ import annotations
+
 import os
-from typing import List, Optional
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Chroma, FAISS
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from app.config import (
     EMBEDDING_MODEL,
     CHROMA_PERSIST_DIR,
-    VECTOR_DB_PATH,
 )
+from app.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class VectorStoreManager:
     """向量存储管理器"""
 
-    def __init__(self, persist_dir: str = CHROMA_PERSIST_DIR):
-        self.persist_dir = persist_dir
-        self.embedding_model = None
-        self.vector_store: Optional[Chroma] = None
+    def __init__(self, persist_dir: str = CHROMA_PERSIST_DIR) -> None:
+        self.persist_dir: str = persist_dir
+        self.embedding_model: HuggingFaceEmbeddings | None = None
+        self.vector_store: Chroma | None = None
         self._init_embeddings()
 
-    def _init_embeddings(self):
+    def _init_embeddings(self) -> None:
         """初始化嵌入模型"""
-        print(f"正在加载嵌入模型: {EMBEDDING_MODEL} ...")
+        logger.info(f"正在加载嵌入模型: {EMBEDDING_MODEL} ...")
         self.embedding_model = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL,
             model_kwargs={"device": "cpu"},
             encode_kwargs={"normalize_embeddings": True},
         )
 
-    def create_from_documents(self, documents: List[Document]) -> int:
+    def create_from_documents(self, documents: list[Document]) -> int:
         """从文档列表创建向量存储"""
         os.makedirs(self.persist_dir, exist_ok=True)
 
@@ -55,12 +58,12 @@ class VectorStoreManager:
             )
             return True
         except Exception as e:
-            print(f"加载向量存储失败: {e}")
+            logger.error(f"加载向量存储失败: {e}")
             return False
 
     def similarity_search(
         self, query: str, k: int = 4
-    ) -> List[Document]:
+    ) -> list[Document]:
         """相似度搜索"""
         if not self.vector_store:
             return []
@@ -68,19 +71,19 @@ class VectorStoreManager:
 
     def similarity_search_with_score(
         self, query: str, k: int = 4
-    ) -> List[tuple]:
+    ) -> list[tuple[Document, float]]:
         """带分数的相似度搜索"""
         if not self.vector_store:
             return []
         return self.vector_store.similarity_search_with_score(query, k=k)
 
-    def get_collection_stats(self) -> dict:
+    def get_collection_stats(self) -> dict[str, int]:
         """获取集合统计信息"""
         if not self.vector_store:
             return {"total": 0}
         try:
             collection = self.vector_store._collection
-            count = collection.count()
+            count: int = collection.count()
             return {"total": count}
         except Exception:
             return {"total": 0}

@@ -1,15 +1,17 @@
 """
 生成器模块 - 基于 DeepSeek-V4-Pro 的智能回答生成
 """
+from __future__ import annotations
+
 import re
 import json
-from typing import List, Dict, Any, Optional
-from langchain_openai import ChatOpenAI
+from typing import Any
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from app.models.provider import get_chat_model
 
 
-SYSTEM_PROMPT = """你是一个专业的数据分析助手。你的任务是基于提供的参考资料，准确回答用户的数据相关问题。
+SYSTEM_PROMPT: str = """你是一个专业的数据分析助手。你的任务是基于提供的参考资料，准确回答用户的数据相关问题。
 
 请严格遵循以下规则：
 1. 只根据提供的"参考资料"内容回答问题，不要使用你自己的知识
@@ -28,24 +30,12 @@ SYSTEM_PROMPT = """你是一个专业的数据分析助手。你的任务是基�
 class RAGGenerator:
     """RAG 生成器，使用 DeepSeek 模型生成回答"""
 
-    def __init__(self):
-        if not DEEPSEEK_API_KEY:
-            raise ValueError(
-                "请设置环境变量 DEEPSEEK_API_KEY，"
-                "可在 https://platform.deepseek.com 获取"
-            )
-
-        self.llm = ChatOpenAI(
-            model=DEEPSEEK_MODEL,
-            api_key=DEEPSEEK_API_KEY,
-            base_url=DEEPSEEK_BASE_URL,
-            temperature=0.3,
-            max_tokens=2048,
-        )
+    def __init__(self) -> None:
+        self.llm: BaseChatModel = get_chat_model(temperature=0.3, max_tokens=2048)
 
     def generate(
-        self, question: str, context: str, sources: List[Any]
-    ) -> Dict[str, Any]:
+        self, question: str, context: str, sources: list[Any]
+    ) -> dict[str, Any]:
         """生成回答"""
         if not context:
             return {
@@ -53,7 +43,7 @@ class RAGGenerator:
                 "chart_data": None,
             }
 
-        messages = [
+        messages: list = [
             SystemMessage(content=SYSTEM_PROMPT),
             HumanMessage(content=f"""## 参考资料
 
@@ -67,17 +57,17 @@ class RAGGenerator:
         ]
 
         response = self.llm.invoke(messages)
-        answer = response.content
+        answer: str = response.content
 
-        chart_data = self._extract_chart_data(answer)
+        chart_data: dict[str, Any] | None = self._extract_chart_data(answer)
         if chart_data:
             answer = self._clean_chart_markdown(answer)
 
         return {"answer": answer, "chart_data": chart_data}
 
-    def _extract_chart_data(self, text: str) -> Optional[Dict]:
+    def _extract_chart_data(self, text: str) -> dict[str, Any] | None:
         """从回答中提取图表数据"""
-        pattern = r"```chart_data\s*\n(.*?)\n```"
+        pattern: str = r"```chart_data\s*\n(.*?)\n```"
         match = re.search(pattern, text, re.DOTALL)
         if match:
             try:
@@ -88,7 +78,7 @@ class RAGGenerator:
 
     def _clean_chart_markdown(self, text: str) -> str:
         """移除回答中的 chart_data 标记"""
-        pattern = r"```chart_data\s*\n.*?\n```"
+        pattern: str = r"```chart_data\s*\n.*?\n```"
         return re.sub(pattern, "", text, flags=re.DOTALL).strip()
 
     def generate_stream(self, question: str, context: str):
@@ -97,7 +87,7 @@ class RAGGenerator:
             yield "当前知识库中没有与您问题相关的数据。请先上传或加载相关数据集。"
             return
 
-        messages = [
+        messages: list = [
             SystemMessage(content=SYSTEM_PROMPT),
             HumanMessage(content=f"""## 参考资料
 

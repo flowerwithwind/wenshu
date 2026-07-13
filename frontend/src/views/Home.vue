@@ -42,6 +42,19 @@
         <div class="status-dot" :class="{ online: systemOk }"></div>
         <span>{{ systemOk ? '系统就绪' : '连接中...' }}</span>
       </div>
+
+      <div class="sidebar-upload">
+        <FileUpload />
+      </div>
+
+      <div class="sidebar-km">
+        <button class="btn-knowledge" @click="showKnowledge = true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          知识库管理
+        </button>
+      </div>
     </aside>
 
     <!-- 主内容区 -->
@@ -54,6 +67,13 @@
           </svg>
         </button>
         <h1 class="title">智能问数系统</h1>
+        <router-link to="/dashboard" class="dashboard-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          数据看板
+        </router-link>
         <div class="topbar-actions">
           <span class="response-badge" v-if="lastMsg?.responseTimeMs">
             {{ lastMsg.responseTimeMs }}ms
@@ -125,6 +145,9 @@
 
     <!-- 移动端遮罩 -->
     <div v-if="sidebarOpen" class="mobile-overlay" @click="sidebarOpen = false"></div>
+
+    <!-- 知识库管理面板 -->
+    <KnowledgeManager v-if="showKnowledge" @close="showKnowledge = false" />
   </div>
 </template>
 
@@ -134,11 +157,14 @@ import { useChatStore } from '../stores/chat'
 import { healthCheck } from '../api'
 import ChatMessage from '../components/ChatMessage.vue'
 import ChatInput from '../components/ChatInput.vue'
+import FileUpload from '../components/FileUpload.vue'
+import KnowledgeManager from '../components/KnowledgeManager.vue'
 
 const store = useChatStore()
 const sidebarOpen = ref(window.innerWidth > 768)
 const systemOk = ref(false)
 const chatAreaRef = ref(null)
+const showKnowledge = ref(false)
 
 const lastMsg = computed(() => store.lastMessage)
 
@@ -335,6 +361,37 @@ onMounted(() => {
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
 }
 
+.sidebar-upload {
+  padding: 0 12px 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar-km {
+  padding: 0 12px 12px;
+}
+
+.btn-knowledge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-knowledge:hover {
+  background: rgba(79, 70, 229, 0.15);
+  color: #e2e8f0;
+  border-color: var(--primary);
+}
+
 /* ===== 主内容区 ===== */
 .main-content {
   flex: 1;
@@ -373,6 +430,25 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   flex: 1;
+}
+
+.dashboard-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+
+.dashboard-link:hover {
+  background: var(--primary);
+  color: #fff;
 }
 
 .topbar-actions {

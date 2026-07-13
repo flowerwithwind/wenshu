@@ -72,3 +72,21 @@ body {
 .slide-in {
   animation: slideIn 0.3s ease;
 }
+
+/* ===== 按钮波纹效果 ===== */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 10%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.btn-ripple:active::after {
+  opacity: 1;
+  transition: 0s;
+}

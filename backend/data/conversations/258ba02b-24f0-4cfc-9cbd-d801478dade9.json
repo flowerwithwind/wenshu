@@ -1,0 +1,22 @@
+{
+  "conversation_id": "258ba02b-24f0-4cfc-9cbd-d801478dade9",
+  "created_at": "2026-07-13T21:36:40.460851",
+  "updated_at": "2026-07-13T21:36:40.460851",
+  "messages": [
+    {
+      "id": "692f67a9-e826-4b91-ae83-e5d7e8112fdb",
+      "question": "测试",
+      "answer": "这是流式回答",
+      "sql": "SELECT 1",
+      "sql_result": {
+        "columns": [
+          "a"
+        ],
+        "rows": [],
+        "row_count": 0
+      },
+      "sources": [],
+      "created_at": ""
+    }
+  ]
+}

@@ -40,4 +40,26 @@ export const rebuildIndex = () => api.post('/rebuild-index')
 // 获取数据集信息
 export const getDatasetInfo = () => api.get('/dataset-info')
 
+// 上传文件
+export const uploadFile = (file, tableName = null, config = {}) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (tableName) formData.append('table_name', tableName)
+  return api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+    ...config,
+  })
+}
+
+// 知识库管理
+export const getKnowledge = () => api.get('/knowledge')
+export const getKnowledgeStats = () => api.get('/knowledge/stats')
+export const createExample = (data) => api.post('/knowledge/examples', data)
+export const deleteExample = (index) => api.delete(`/knowledge/examples/${index}`)
+export const createSynonym = (data) => api.post('/knowledge/synonyms', data)
+export const deleteSynonym = (index) => api.delete(`/knowledge/synonyms/${index}`)
+export const createDomainMapping = (data) => api.post('/knowledge/domain-mappings', data)
+export const deleteDomainMapping = (index) => api.delete(`/knowledge/domain-mappings/${index}`)
+
 export default api

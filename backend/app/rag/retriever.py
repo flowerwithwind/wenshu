@@ -1,7 +1,8 @@
 """
 检索器模块 - 基于向量相似度的智能检索
 """
-from typing import List, Tuple, Optional
+from __future__ import annotations
+
 from langchain_core.documents import Document
 from app.config import RETRIEVER_K, RETRIEVER_SCORE_THRESHOLD
 from app.rag.vectorstore import VectorStoreManager
@@ -15,40 +16,50 @@ class SmartRetriever:
         vector_store_manager: VectorStoreManager,
         k: int = RETRIEVER_K,
         score_threshold: float = RETRIEVER_SCORE_THRESHOLD,
-    ):
-        self.vsm = vector_store_manager
-        self.k = k
-        self.score_threshold = score_threshold
+    ) -> None:
+        self.vsm: VectorStoreManager = vector_store_manager
+        self.k: int = k
+        self.score_threshold: float = score_threshold
 
-    def retrieve(self, query: str) -> List[Document]:
+    def retrieve(self, query: str) -> list[Document]:
         """检索相关文档"""
         if not self.vsm.is_ready():
             return []
 
-        results = self.vsm.similarity_search_with_score(query, k=self.k)
+        results: list[tuple[Document, float]] = self.vsm.similarity_search_with_score(query, k=self.k)
 
-        filtered = []
-        for doc, score in results:
-            if score >= self.score_threshold:
-                doc.metadata["score"] = float(score)
-                filtered.append(doc)
+        # ChromaDB 返回 L2 距离（越小越相似），转换为余弦相似度（0-1，越大越相似）
+        # 归一化向量的 L2 距离 ∈ [0, 2]，相似度 = 1 - distance/2
+        scored: list[tuple[Document, float]] = []
+        for doc, distance in results:
+            similarity: float = max(0.0, min(1.0, 1.0 - distance / 2.0))
+            doc.metadata["score"] = round(similarity, 4)
+            scored.append((doc, similarity))
 
-        return filtered if filtered else [doc for doc, _ in results[:2]]
+        # 过滤低于阈值的结果
+        filtered: list[tuple[Document, float]] = [(doc, sim) for doc, sim in scored if sim >= self.score_threshold]
+        if filtered:
+            filtered.sort(key=lambda x: x[1], reverse=True)
+            return [doc for doc, _ in filtered]
+
+        # 无达标结果时，返回前2个
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [doc for doc, _ in scored[:2]]
 
     def retrieve_with_context(
         self, query: str
-    ) -> Tuple[str, List[Document]]:
+    ) -> tuple[str, list[Document]]:
         """检索并返回格式化的上下文和源文档列表"""
-        docs = self.retrieve(query)
+        docs: list[Document] = self.retrieve(query)
         if not docs:
             return "", []
 
-        context_parts = []
+        context_parts: list[str] = []
         for i, doc in enumerate(docs):
-            source = doc.metadata.get("source", "未知")
+            source: str = doc.metadata.get("source", "未知")
             context_parts.append(
                 f"[来源 {i+1}: {source}]\n{doc.page_content}"
             )
 
-        context = "\n\n---\n\n".join(context_parts)
+        context: str = "\n\n---\n\n".join(context_parts)
         return context, docs
