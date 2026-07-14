@@ -628,7 +628,7 @@ onMounted(() => {
   min-height: 0;
   height: 100%;
   position: relative;
-  position: relative;  /* 为滚动按钮提供定位上下文 */
+  position: relative; /* 为滚动按钮提供定位上下文 */
   overflow: hidden;
   background: var(--bg);
 }
@@ -921,7 +921,7 @@ onMounted(() => {
   border-radius: 50%;
   background: #fff;
   border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -939,8 +939,14 @@ onMounted(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ===== 输入区：固定在主内容区底部，不随消息滚动 ===== */
