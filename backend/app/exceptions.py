@@ -17,6 +17,8 @@ class ErrorCode(str, Enum):
     UNSUPPORTED_FILE_TYPE = "UNSUPPORTED_FILE_TYPE"
     RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
     VECTOR_STORE_ERROR = "VECTOR_STORE_ERROR"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    FORBIDDEN = "FORBIDDEN"
 
 
 ERROR_MESSAGES: dict[ErrorCode, str] = {
@@ -32,10 +34,14 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.UNSUPPORTED_FILE_TYPE: "不支持的文件类型",
     ErrorCode.RATE_LIMIT_EXCEEDED: "请求过于频繁，请稍后重试",
     ErrorCode.VECTOR_STORE_ERROR: "向量存储错误",
+    ErrorCode.UNAUTHORIZED: "未登录或登录已过期",
+    ErrorCode.FORBIDDEN: "权限不足",
 }
 
 HTTP_STATUS_MAP: dict[ErrorCode, int] = {
     ErrorCode.INVALID_REQUEST: 400,
+    ErrorCode.UNAUTHORIZED: 401,
+    ErrorCode.FORBIDDEN: 403,
     ErrorCode.RATE_LIMIT_EXCEEDED: 429,
     ErrorCode.FILE_TOO_LARGE: 413,
     ErrorCode.UNSUPPORTED_FILE_TYPE: 415,

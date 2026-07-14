@@ -66,7 +66,7 @@ const placeholder = computed(() =>
     ? '模型正在思考，请稍候…'
     : props.disabled
       ? '请稍候…'
-      : '问点电商数据：销售额排名、会员分析、退款率…'
+      : '用自然语言提问，例如：有哪些表？某表有多少行？按状态/月份统计…'
 )
 
 function autoResize() {

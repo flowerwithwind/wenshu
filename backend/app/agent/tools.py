@@ -81,23 +81,48 @@ def execute_sql(sql: str) -> str:
 
 @tool
 def search_knowledge(query: str) -> str:
-    """搜索领域知识库，获取 Few-shot 示例、同义词映射、领域术语解释。"""
+    """搜索当前数据源的领域知识库（Few-shot / 同义词 / 领域术语）；非内置库优先读 JSON 知识库。"""
     try:
-        retriever = _get_rag_retriever()
-        if not retriever:
-            return "RAG 知识库未初始化，请先构建向量索引"
+        from app.datasources.sqlite_ds import BUILTIN_SQLITE_ID
+        from app.services.knowledge_manager import knowledge_as_prompt_context, load_knowledge
 
-        context, docs = retriever.retrieve_with_context(query)
-        if not docs:
+        ds = get_current_datasource()
+        ds_id = ds.meta.id
+        # 1) 当前数据源 JSON 知识库（隔离）
+        local = knowledge_as_prompt_context(ds_id, limit=10)
+        parts: list[str] = []
+        if local.strip():
+            parts.append(f"## 数据源「{ds.meta.name}」专属知识库\n{local[:3500]}")
+
+        # 2) 内置库额外用向量检索增强；外部库避免电商向量污染
+        if ds_id == BUILTIN_SQLITE_ID or ds.meta.is_builtin:
+            try:
+                retriever = _get_rag_retriever()
+                if retriever:
+                    _ctx, docs = retriever.retrieve_with_context(query)
+                    if docs:
+                        parts.append(f"## 向量检索（查询: {query}）")
+                        for i, doc in enumerate(docs[:4], 1):
+                            score = doc.metadata.get("score", "N/A")
+                            source_type = doc.metadata.get("type", "未知")
+                            parts.append(
+                                f"### 片段 {i} (类型: {source_type}, 相关度: {score})\n"
+                                f"{doc.page_content[:400]}"
+                            )
+            except Exception as e:
+                parts.append(f"（向量检索跳过: {e}）")
+        else:
+            stats = load_knowledge(ds_id)
+            n_ex = len(stats.get("question_sql_examples") or [])
+            if n_ex == 0:
+                parts.append(
+                    "提示：当前数据源知识库为空，可在「数据源」导入后自动生成，"
+                    "或在「知识库」页点击「扫描生成」。"
+                )
+
+        if not parts:
             return f"未找到与 '{query}' 相关的知识片段"
-
-        result: str = f"知识库检索结果（查询: {query}）:\n\n"
-        for i, doc in enumerate(docs[:5], 1):
-            score = doc.metadata.get("score", "N/A")
-            source_type = doc.metadata.get("type", "未知")
-            result += f"### 片段 {i} (类型: {source_type}, 相关度: {score})\n"
-            result += f"{doc.page_content[:500]}\n\n"
-        return result
+        return "\n\n".join(parts)
     except Exception as e:
         return f"知识库检索失败: {e}"
 

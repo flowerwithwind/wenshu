@@ -103,9 +103,12 @@ class NL2SQLPipeline:
                 "sql_result": None,
             }
 
+        # 缓存 key 按数据源隔离，避免跨库命中错误答案
+        cache_q = f"{ds.meta.id}::{question}"
+
         # Step 0: 语义缓存检查（基于 embedding 相似度）
         semantic_cache = get_semantic_cache()
-        cached = semantic_cache.get(question)
+        cached = semantic_cache.get(cache_q)
         if cached:
             logger.debug(f"语义缓存命中: {question[:50]}...")
             elapsed_ms = (time.time() - start_time) * 1000
@@ -124,11 +127,11 @@ class NL2SQLPipeline:
             }
 
         # Step 0.5: 精确缓存检查
-        cached = get_cache(question)
+        cached = get_cache(cache_q)
         if cached:
             logger.debug(f"Cache Hit: {question[:50]}...")
             # 同步到语义缓存，使相似问题也可命中
-            semantic_cache.set(question, cached)
+            semantic_cache.set(cache_q, cached)
             elapsed_ms: float = (time.time() - start_time) * 1000
             return {
                 "id": str(uuid.uuid4()),
@@ -144,9 +147,22 @@ class NL2SQLPipeline:
                 "sql_result": cached.get("sql_result"),
             }
 
-        # Step 1: RAG 辅助检索（获取上下文，用于回退和来源展示）
+        # Step 1: RAG 辅助检索 + 当前数据源知识库（隔离）
         schema: str = ds.get_schema_info()
         rag_context, rag_docs = self._get_rag_context(question)
+        try:
+            from app.services.knowledge_manager import knowledge_as_prompt_context
+            from app.datasources.sqlite_ds import BUILTIN_SQLITE_ID
+
+            ds_knowledge = knowledge_as_prompt_context(ds.meta.id)
+            # 非内置库：向量库可能是电商 few-shot，避免污染 → 以本库知识库为主
+            if ds.meta.id != BUILTIN_SQLITE_ID and not ds.meta.is_builtin:
+                rag_context = ds_knowledge
+                rag_docs = []
+            elif ds_knowledge:
+                rag_context = (ds_knowledge + "\n\n" + (rag_context or ""))[:6000]
+        except Exception as e:
+            logger.debug(f"加载数据源知识库失败: {e}")
 
         intent: Intent = IntentClassifier.classify(question)
 
@@ -165,7 +181,9 @@ class NL2SQLPipeline:
         # Step 2: NL2SQL 翻译（RAG 上下文作为 few-shot 示例辅助）
         with tracer.start_as_current_span("nl2sql_translate") as span:
             span.set_attribute("question", question[:200])
-            sql: str = self.translator.translate(question, schema, rag_context, history_prompt)
+            sql: str = self.translator.translate(
+                question, schema, rag_context, history_prompt, dialect=ds.dialect,
+            )
             span.set_attribute("sql_length", len(sql))
             span.set_attribute("is_valid", str(self.translator._is_valid_sql(sql)))
 
@@ -250,9 +268,9 @@ class NL2SQLPipeline:
             "sql_result": {"columns": columns, "rows": rows, "row_count": len(rows)},
         }
 
-        # 缓存结果（精确 + 语义）
-        set_cache(question, response)
-        semantic_cache.set(question, response)
+        # 缓存结果（精确 + 语义，按数据源隔离）
+        set_cache(cache_q, response)
+        semantic_cache.set(cache_q, response)
 
         return response
 
@@ -313,9 +331,11 @@ class NL2SQLPipeline:
             self._last_response_time_ms = round((time.time() - start_time) * 1000, 2)
             return
 
+        cache_q = f"{ds.meta.id}::{question}"
+
         # Step 0: 语义缓存
         semantic_cache = get_semantic_cache()
-        cached = semantic_cache.get(question)
+        cached = semantic_cache.get(cache_q)
         if cached:
             logger.debug(f"流式语义缓存命中: {question[:50]}...")
             answer = self._apply_cached_to_stream_state(cached, start_time, conv_id)
@@ -324,18 +344,30 @@ class NL2SQLPipeline:
             return
 
         # Step 0.5: 精确缓存
-        cached = get_cache(question)
+        cached = get_cache(cache_q)
         if cached:
             logger.debug(f"流式精确缓存命中: {question[:50]}...")
-            semantic_cache.set(question, cached)
+            semantic_cache.set(cache_q, cached)
             answer = self._apply_cached_to_stream_state(cached, start_time, conv_id)
             if answer:
                 yield answer
             return
 
-        # Step 1: RAG + 意图
+        # Step 1: RAG + 意图 + 数据源知识库
         schema: str = ds.get_schema_info()
         rag_context, rag_docs = self._get_rag_context(question)
+        try:
+            from app.services.knowledge_manager import knowledge_as_prompt_context
+            from app.datasources.sqlite_ds import BUILTIN_SQLITE_ID
+
+            ds_knowledge = knowledge_as_prompt_context(ds.meta.id)
+            if ds.meta.id != BUILTIN_SQLITE_ID and not ds.meta.is_builtin:
+                rag_context = ds_knowledge
+                rag_docs = []
+            elif ds_knowledge:
+                rag_context = (ds_knowledge + "\n\n" + (rag_context or ""))[:6000]
+        except Exception:
+            pass
         intent: Intent = IntentClassifier.classify(question)
 
         if intent == Intent.CHITCHAT:
@@ -365,7 +397,9 @@ class NL2SQLPipeline:
         # Step 2: NL2SQL 翻译
         with get_tracer().start_as_current_span("nl2sql_translate") as span:
             span.set_attribute("question", question[:200])
-            sql: str = self.translator.translate(question, schema, rag_context, history_prompt)
+            sql: str = self.translator.translate(
+                question, schema, rag_context, history_prompt, dialect=ds.dialect,
+            )
             span.set_attribute("sql_length", len(sql))
             span.set_attribute("is_valid", str(self.translator._is_valid_sql(sql)))
 
@@ -470,20 +504,36 @@ class NL2SQLPipeline:
             "sql": sql,
             "sql_result": self._last_sql_result,
         }
-        set_cache(question, cache_payload)
-        semantic_cache.set(question, cache_payload)
+        set_cache(cache_q, cache_payload)
+        semantic_cache.set(cache_q, cache_payload)
 
     def _handle_chitchat(self, question: str, conv_id: str) -> dict[str, Any]:
-        """处理闲聊"""
+        """处理闲聊（文案随当前数据源自适应）"""
+        ds_name = "当前数据源"
+        try:
+            from app.datasources.context import get_current_datasource
+
+            ds = get_current_datasource()
+            ds_name = ds.meta.name
+        except Exception:
+            pass
+
         greetings: dict[str, str] = {
-            "你好": "你好！我是智能问数助手，可以帮你查询和分析电商数据。试试问我'销售额最高的品类是什么？'",
+            "你好": f"你好！我是智能问数助手，当前数据源是「{ds_name}」。可以用自然语言提问，我会生成 SQL 并分析。",
             "谢谢": "不客气！随时可以继续提问。",
             "再见": "再见！期待下次为你服务。",
-            "你是谁": "我是智能问数助手，基于 NL2SQL + RAG 架构，可以帮你查询和分析电商数据库中的订单、客户、商品、退款等数据。",
-            "你能做什么": "我可以帮你：\n1. 查询销售额、订单数、客户数等数据\n2. 分析各品类、省份、会员等级的销售表现\n3. 计算退款率、折扣率、达成率等指标\n4. 生成趋势图、排名图、饼图等可视化\n\n试试问我'2024年各月销售额趋势'吧！",
-            "介绍一下": "这是智能问数系统，一个基于自然语言的数据查询工具。你只需用中文提问，系统会自动翻译为 SQL 查询数据库，并返回清晰的分析结果和图表。",
-            "hello": "Hello! I'm a Smart QA assistant for e-commerce data. How can I help you with your data analysis?",
-            "hi": "Hi there! I can help you explore sales, customer, and product data. What would you like to know?",
+            "你是谁": f"我是智能问数助手（NL2SQL + RAG + Agent）。当前连接「{ds_name}」，可查询表结构、做聚合分析并可视化。",
+            "你能做什么": (
+                f"基于数据源「{ds_name}」，我可以：\n"
+                "1. 用自然语言查询表数据\n"
+                "2. 做分组统计、排名、趋势分析\n"
+                "3. 生成图表\n"
+                "4. 结合该数据源专属知识库（Few-shot/同义词）提升准确率\n\n"
+                "试试：「有哪些表？」「某表一共多少行？」"
+            ),
+            "介绍一下": "这是智能问数系统：中文提问 → SQL → 执行 → 解读/图表。支持多数据源切换与知识库隔离。",
+            "hello": f"Hello! SmartQA is ready. Current datasource: {ds_name}.",
+            "hi": f"Hi! Ask me anything about datasource 「{ds_name}」.",
         }
 
         q_lower: str = question.lower().strip()
@@ -494,7 +544,7 @@ class NL2SQLPipeline:
                 break
 
         if not answer:
-            answer = "你好！有什么数据相关的问题我可以帮你解答吗？"
+            answer = f"你好！当前数据源是「{ds_name}」，有什么数据问题可以帮你？"
 
         return {
             "id": str(uuid.uuid4()),
@@ -622,18 +672,19 @@ class NL2SQLPipeline:
         conv_id: str = conversation_id or str(uuid.uuid4())
         ds = get_datasource(datasource_id)
         set_current_datasource(ds, datasource_id)
-        cached = get_semantic_cache().get(question)
+        cache_q = f"{ds.meta.id}::{question}"
+        cached = get_semantic_cache().get(cache_q)
         if cached:
             elapsed_ms: float = (time.time() - start_time) * 1000
             cached["response_time_ms"] = round(elapsed_ms, 2)
             cached["conversation_id"] = conv_id
             return cached
-        cached = get_cache(question)
+        cached = get_cache(cache_q)
         if cached:
             elapsed_ms: float = (time.time() - start_time) * 1000
             cached["response_time_ms"] = round(elapsed_ms, 2)
             cached["conversation_id"] = conv_id
-            get_semantic_cache().set(question, cached)
+            get_semantic_cache().set(cache_q, cached)
             return cached
         intent: Intent = IntentClassifier.classify(question)
         if intent == Intent.CHITCHAT:
@@ -644,7 +695,7 @@ class NL2SQLPipeline:
             agent = get_agent()
             result: dict[str, Any] = agent.query(question, conv_id)
             result["conversation_id"] = result.get("conversation_id", conv_id)
-            get_semantic_cache().set(question, result)
+            get_semantic_cache().set(cache_q, result)
             return result
         except ValueError as e:
             logger.warning(f"Agent 不可用 ({e})，回退到 Pipeline 模式")

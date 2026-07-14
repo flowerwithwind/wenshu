@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import threading
 import uuid
 from pathlib import Path
@@ -15,6 +16,7 @@ from app.logger import get_logger
 logger = get_logger(__name__)
 
 STORE_PATH: Path = BACKEND_ROOT / "data" / "datasources.json"
+USER_DB_DIR: Path = BACKEND_ROOT / "data" / "user_dbs"
 _lock = threading.Lock()
 
 
@@ -27,6 +29,7 @@ def _builtin_record() -> dict[str, Any]:
         "host": "",
         "port": None,
         "database": "knowledge.db",
+        "db_path": str((BACKEND_ROOT / "data" / "knowledge.db").resolve()),
         "username": "",
         "password_enc": "",
         "is_default": True,
@@ -46,7 +49,6 @@ def _load_raw() -> list[dict[str, Any]]:
     except Exception:
         raw = []
 
-    # 确保内置源存在
     ids = {r.get("id") for r in raw}
     if BUILTIN_SQLITE_ID not in ids:
         raw.insert(0, _builtin_record())
@@ -62,7 +64,6 @@ def _save_raw(records: list[dict[str, Any]]) -> None:
 def list_datasource_records() -> list[dict[str, Any]]:
     with _lock:
         records = _load_raw()
-        # 保证只有一个 default
         defaults = [r for r in records if r.get("is_default")]
         if not defaults:
             for r in records:
@@ -80,9 +81,25 @@ def get_record(ds_id: str) -> dict[str, Any] | None:
     return None
 
 
-def public_record(r: dict[str, Any]) -> dict[str, Any]:
+def resolve_sqlite_path(record: dict[str, Any]) -> str:
+    """解析 SQLite 文件绝对路径。"""
+    if record.get("id") == BUILTIN_SQLITE_ID or record.get("is_builtin"):
+        return str((BACKEND_ROOT / "data" / "knowledge.db").resolve())
+    raw = (record.get("db_path") or record.get("database") or "").strip()
+    if not raw:
+        return str((USER_DB_DIR / f"{record.get('id')}.db").resolve())
+    p = Path(raw)
+    if not p.is_absolute():
+        p = BACKEND_ROOT / "data" / raw
+    return str(p.resolve())
+
+
+def public_record(r: dict[str, Any], *, table_count: int | None = None) -> dict[str, Any]:
     """对外返回：不含密码明文"""
-    return {
+    needs_import = False
+    if table_count is not None:
+        needs_import = table_count == 0 and not r.get("is_builtin")
+    out: dict[str, Any] = {
         "id": r.get("id"),
         "name": r.get("name"),
         "type": r.get("type"),
@@ -94,7 +111,16 @@ def public_record(r: dict[str, Any]) -> dict[str, Any]:
         "has_password": bool(r.get("password_enc")),
         "is_default": bool(r.get("is_default")),
         "is_builtin": bool(r.get("is_builtin")),
+        "db_path": r.get("db_path") or "",
+        "table_count": table_count,
+        "needs_import": needs_import,
+        "next_step": (
+            "请导入 CSV/Excel 数据表后再进行智能问数"
+            if needs_import
+            else ""
+        ),
     }
+    return out
 
 
 def create_record(payload: dict[str, Any]) -> dict[str, Any]:
@@ -108,7 +134,7 @@ def create_record(payload: dict[str, Any]) -> dict[str, Any]:
 
         ds_id = str(uuid.uuid4())
         password = payload.get("password") or ""
-        rec = {
+        rec: dict[str, Any] = {
             "id": ds_id,
             "name": (payload.get("name") or f"{ds_type}-{ds_id[:8]}").strip(),
             "type": ds_type,
@@ -116,11 +142,37 @@ def create_record(payload: dict[str, Any]) -> dict[str, Any]:
             "host": (payload.get("host") or "").strip(),
             "port": payload.get("port"),
             "database": (payload.get("database") or "").strip(),
+            "db_path": "",
             "username": (payload.get("username") or "").strip(),
             "password_enc": encrypt_secret(password) if password else "",
             "is_default": False,
             "is_builtin": False,
         }
+
+        if ds_type == "sqlite":
+            # 创建空库文件：创建数据源 ≠ 导入数据
+            USER_DB_DIR.mkdir(parents=True, exist_ok=True)
+            db_file = USER_DB_DIR / f"{ds_id}.db"
+            # 若用户指定了相对文件名
+            custom = (payload.get("database") or "").strip()
+            if custom and not custom.endswith(".db"):
+                custom = f"{custom}.db"
+            if custom and "/" not in custom and "\\" not in custom:
+                db_file = USER_DB_DIR / custom
+            conn = sqlite3.connect(str(db_file))
+            conn.close()
+            rec["db_path"] = str(db_file.resolve())
+            rec["database"] = db_file.name
+            if not rec["description"]:
+                rec["description"] = "用户 SQLite 库（创建后请导入数据表）"
+        else:
+            if not rec["database"]:
+                raise ValueError("MySQL/PostgreSQL 必须填写 database 名称")
+            if not rec["host"]:
+                rec["host"] = "127.0.0.1"
+            if rec["port"] is None:
+                rec["port"] = 5432 if ds_type == "postgres" else 3306
+
         if payload.get("is_default"):
             for r in records:
                 r["is_default"] = False
@@ -129,7 +181,7 @@ def create_record(payload: dict[str, Any]) -> dict[str, Any]:
         records.append(rec)
         _save_raw(records)
         logger.info(f"创建数据源: {rec['name']} ({ds_type})")
-        return public_record(rec)
+        return public_record(rec, table_count=0 if ds_type == "sqlite" else None)
 
 
 def update_record(ds_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -152,7 +204,6 @@ def update_record(ds_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         if "port" in payload:
             target["port"] = payload["port"]
         if "password" in payload and payload["password"]:
-            # 带 * 的掩码不更新
             pwd = str(payload["password"])
             if "*" not in pwd:
                 target["password_enc"] = encrypt_secret(pwd)
@@ -174,6 +225,14 @@ def delete_record(ds_id: str) -> None:
         if target.get("is_builtin") or ds_id == BUILTIN_SQLITE_ID:
             raise ValueError("内置数据源不可删除")
         was_default = bool(target.get("is_default"))
+        # 可选删除用户 SQLite 文件
+        if target.get("type") == "sqlite" and target.get("db_path"):
+            try:
+                p = Path(target["db_path"])
+                if p.exists() and "user_dbs" in str(p):
+                    p.unlink()
+            except Exception as e:
+                logger.warning(f"删除 SQLite 文件失败: {e}")
         records = [r for r in records if r.get("id") != ds_id]
         if was_default:
             for r in records:

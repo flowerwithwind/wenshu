@@ -71,3 +71,10 @@ RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"
 # OpenTelemetry 配置
 OTEL_SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME", "smartqa")
 OTEL_EXPORTER_OTLP_ENDPOINT: str | None = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") or None
+
+# JWT 认证配置
+JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "smartqa-dev-secret-change-me-in-prod")
+JWT_ALGORITHM: str = "HS256"
+JWT_EXPIRE_HOURS: int = int(os.getenv("JWT_EXPIRE_HOURS", "24"))
+# auth.db 路径（独立于业务数据库，职责单一）
+AUTH_DB_PATH: str = _path_from_env("AUTH_DB_PATH", "data/auth.db")

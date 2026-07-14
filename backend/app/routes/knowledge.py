@@ -1,15 +1,29 @@
-"""知识库管理路由"""
+"""知识库管理路由 — 按数据源隔离"""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+from app.datasources.sqlite_ds import BUILTIN_SQLITE_ID
 from app.services.knowledge_manager import (
-    load_knowledge, add_example, delete_example, update_example,
-    add_synonym, delete_synonym, add_domain_mapping, delete_domain_mapping,
-    get_stats
+    add_domain_mapping,
+    add_example,
+    add_synonym,
+    delete_domain_mapping,
+    delete_example,
+    delete_synonym,
+    get_stats,
+    load_knowledge,
+    update_example,
 )
 
 knowledge_router: APIRouter = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
+
+
+def _ds(datasource_id: str | None) -> str:
+    return (datasource_id or BUILTIN_SQLITE_ID).strip() or BUILTIN_SQLITE_ID
 
 
 class ExampleCreate(BaseModel):
@@ -17,6 +31,7 @@ class ExampleCreate(BaseModel):
     sql: str
     tables: list[str] = []
     tags: list[str] = []
+    datasource_id: str | None = None
 
 
 class ExampleUpdate(BaseModel):
@@ -24,83 +39,107 @@ class ExampleUpdate(BaseModel):
     sql: str | None = None
     tables: list[str] | None = None
     tags: list[str] | None = None
+    datasource_id: str | None = None
 
 
 class SynonymCreate(BaseModel):
     synonyms: list[str]
     target_column: str
     table: str
+    datasource_id: str | None = None
 
 
 class DomainMappingCreate(BaseModel):
     term: str
     mapping: str
     table: str
+    datasource_id: str | None = None
 
 
 @knowledge_router.get("/")
-async def get_knowledge() -> dict:
-    """获取完整知识库"""
-    return load_knowledge()
+async def get_knowledge(
+    datasource_id: str | None = Query(default=None),
+) -> dict[str, Any]:
+    return load_knowledge(_ds(datasource_id))
 
 
 @knowledge_router.get("/stats")
-async def knowledge_stats() -> dict:
-    """获取知识库统计"""
-    return get_stats()
+async def knowledge_stats(
+    datasource_id: str | None = Query(default=None),
+) -> dict[str, Any]:
+    stats = get_stats(_ds(datasource_id))
+    return stats
 
 
 @knowledge_router.post("/examples")
-async def create_example(body: ExampleCreate) -> dict:
-    """新增示例"""
-    result: dict = add_example(body.question, body.sql, body.tables, body.tags)
-    return result
+async def create_example(body: ExampleCreate) -> dict[str, Any]:
+    return add_example(
+        body.question,
+        body.sql,
+        body.tables,
+        body.tags,
+        datasource_id=_ds(body.datasource_id),
+    )
 
 
 @knowledge_router.put("/examples/{index}")
-async def update_example_route(index: int, body: ExampleUpdate) -> dict:
-    """更新示例"""
-    kwargs: dict = {k: v for k, v in body.model_dump().items() if v is not None}
+async def update_example_route(index: int, body: ExampleUpdate) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        k: v
+        for k, v in body.model_dump().items()
+        if v is not None and k != "datasource_id"
+    }
     try:
-        result: dict = update_example(index, **kwargs)
-        return result
+        return update_example(index, datasource_id=_ds(body.datasource_id), **kwargs)
     except IndexError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @knowledge_router.delete("/examples/{index}")
-async def delete_example_route(index: int) -> dict:
-    """删除示例"""
-    if delete_example(index):
+async def delete_example_route(
+    index: int,
+    datasource_id: str | None = Query(default=None),
+) -> dict[str, str]:
+    if delete_example(index, datasource_id=_ds(datasource_id)):
         return {"status": "deleted"}
     raise HTTPException(status_code=404, detail="示例不存在")
 
 
 @knowledge_router.post("/synonyms")
-async def create_synonym(body: SynonymCreate) -> dict:
-    """新增同义词"""
-    result: dict = add_synonym(body.synonyms, body.target_column, body.table)
-    return result
+async def create_synonym(body: SynonymCreate) -> dict[str, Any]:
+    return add_synonym(
+        body.synonyms,
+        body.target_column,
+        body.table,
+        datasource_id=_ds(body.datasource_id),
+    )
 
 
 @knowledge_router.delete("/synonyms/{index}")
-async def delete_synonym_route(index: int) -> dict:
-    """删除同义词"""
-    if delete_synonym(index):
+async def delete_synonym_route(
+    index: int,
+    datasource_id: str | None = Query(default=None),
+) -> dict[str, str]:
+    if delete_synonym(index, datasource_id=_ds(datasource_id)):
         return {"status": "deleted"}
     raise HTTPException(status_code=404, detail="同义词不存在")
 
 
 @knowledge_router.post("/domain-mappings")
-async def create_domain_mapping(body: DomainMappingCreate) -> dict:
-    """新增领域映射"""
-    result: dict = add_domain_mapping(body.term, body.mapping, body.table)
-    return result
+async def create_domain_mapping(body: DomainMappingCreate) -> dict[str, Any]:
+    return add_domain_mapping(
+        body.term,
+        body.mapping,
+        body.table,
+        datasource_id=_ds(body.datasource_id),
+    )
 
 
 @knowledge_router.delete("/domain-mappings/{index}")
-async def delete_domain_mapping_route(index: int) -> dict:
-    """删除领域映射"""
-    if delete_domain_mapping(index):
+async def delete_domain_mapping_route(
+    index: int,
+    datasource_id: str | None = Query(default=None),
+) -> dict[str, str]:
+    if delete_domain_mapping(index, datasource_id=_ds(datasource_id)):
         return {"status": "deleted"}
     raise HTTPException(status_code=404, detail="领域映射不存在")

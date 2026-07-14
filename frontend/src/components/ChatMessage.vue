@@ -96,13 +96,36 @@ const md = new MarkdownIt({
   linkify: true,
 })
 
+// 代码块复制按钮：在渲染后动态绑定点击事件
+function bindCopyButtons() {
+  // 通过 nextTick 调用，确保 DOM 已更新
+  setTimeout(() => {
+    document.querySelectorAll('.msg-content pre').forEach((pre) => {
+      if (pre.querySelector('.code-copy-btn')) return // 已添加
+      const btn = document.createElement('button')
+      btn.className = 'code-copy-btn'
+      btn.textContent = '复制'
+      btn.addEventListener('click', () => {
+        const code = pre.querySelector('code')?.textContent || pre.textContent
+        navigator.clipboard.writeText(code).then(() => {
+          btn.textContent = '已复制'
+          setTimeout(() => { btn.textContent = '复制' }, 2000)
+        })
+      })
+      pre.style.position = 'relative'
+      pre.appendChild(btn)
+    })
+  }, 100)
+}
+
 const renderedContent = computed(() => {
   try {
-    // 流式过程中内容频繁变化，直接渲染 markdown
     const text = props.message.content || ''
     if (!text) {
       return props.message.isStreaming ? '<span class="stream-placeholder">正在生成…</span>' : ''
     }
+    // 渲染完成后绑定复制按钮（非流式时立即，流式时等结束）
+    if (!props.message.isStreaming) bindCopyButtons()
     return md.render(text)
   } catch {
     return props.message.content || ''
@@ -131,7 +154,7 @@ function exportResult(format) {
 .chat-message {
   display: flex;
   gap: 12px;
-  padding: 14px 0;
+  padding: 16px 0;
   animation: slideInUp 0.3s ease-out;
 }
 
@@ -139,7 +162,7 @@ function exportResult(format) {
   background: #fff;
   border: 1px solid #eef2ff;
   border-radius: 16px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
   max-width: min(100%, 720px);
 }
@@ -148,7 +171,7 @@ function exportResult(format) {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: #fff;
   border-radius: 16px 16px 4px 16px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   max-width: min(100%, 640px);
   margin-left: auto;
 }
@@ -277,7 +300,33 @@ function exportResult(format) {
   padding: 12px 16px;
   border-radius: var(--radius-sm);
   overflow-x: auto;
-  margin: 8px 0;
+  margin: 10px 0;
+  position: relative;
+}
+
+/* 代码块复制按钮 */
+.msg-content :deep(.code-copy-btn) {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.msg-content :deep(pre:hover .code-copy-btn) {
+  opacity: 1;
+}
+
+.msg-content :deep(.code-copy-btn:hover) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .msg-content :deep(pre code) {

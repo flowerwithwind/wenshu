@@ -4,17 +4,17 @@
       <div class="header-left">
         <h1>数据看板</h1>
         <p class="header-sub">
-          {{ stats.datasource_name ? `数据源：${stats.datasource_name}` : '电商核心指标概览' }}
+          <template v-if="stats.datasource_name">
+            {{ stats.datasource_name }}
+            <span v-if="stats.profile_label" class="profile-tag">{{ stats.profile_label }}</span>
+          </template>
+          <template v-else>按数据源自适应生成指标与图表</template>
         </p>
       </div>
       <div class="header-right">
         <label class="ds-picker">
           <span class="ds-label">数据源</span>
-          <select
-            v-model="selectedDsId"
-            :disabled="loading || dsLoading"
-            @change="loadStats"
-          >
+          <select v-model="selectedDsId" :disabled="loading || dsLoading" @change="loadStats">
             <option v-for="ds in datasources" :key="ds.id" :value="ds.id">
               {{ ds.name }}{{ ds.is_default ? '（默认）' : '' }}
             </option>
@@ -27,111 +27,86 @@
     </header>
 
     <div v-if="error" class="banner warn">{{ error }}</div>
-    <div v-else-if="stats.message && !stats.schema_ok && !loading" class="banner warn">
-      {{ stats.message }}
-    </div>
+    <div v-else-if="stats.message && !loading" class="banner info">{{ stats.message }}</div>
 
     <div class="dash-content" v-if="!loading">
-      <section class="overview-cards">
-        <div class="stat-card">
-          <div class="stat-icon revenue">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
+      <!-- KPI -->
+      <section class="overview-cards" v-if="displayKpis.length">
+        <div v-for="k in displayKpis" :key="k.key" class="stat-card">
+          <div class="stat-icon" :class="k.icon || 'generic'">
+            <span class="icon-letter">{{ (k.label || '?').slice(0, 1) }}</span>
           </div>
           <div class="stat-info">
-            <span class="stat-label">总销售额</span>
-            <span class="stat-value">{{ formatCurrency(stats.total_revenue) }}</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon orders">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">总订单数</span>
-            <span class="stat-value">{{ stats.total_orders ?? 0 }}</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon customers">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">客户数</span>
-            <span class="stat-value">{{ stats.total_customers ?? 0 }}</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon refund">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-            </svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">退款率</span>
-            <span class="stat-value">{{ stats.refund_rate ?? 0 }}%</span>
+            <span class="stat-label">{{ k.label }}</span>
+            <span class="stat-value">{{ formatValue(k.value, k.format) }}</span>
           </div>
         </div>
       </section>
+      <div v-else class="empty-hint">暂无 KPI（可能是空库，请先导入数据）</div>
 
-      <section class="charts-grid">
-        <div class="chart-card chart-wide">
+      <!-- Charts -->
+      <section class="charts-grid" v-if="displayCharts.length">
+        <div
+          v-for="ch in displayCharts"
+          :key="ch.id"
+          class="chart-card"
+          :class="{ 'chart-wide': ch.wide || ch.type === 'bar' }"
+        >
           <div class="chart-card-header">
-            <h3>各品类销售额排名</h3>
+            <h3>{{ ch.title }}</h3>
+            <span class="chart-type">{{ typeLabel(ch.type) }}</span>
           </div>
           <div class="chart-card-body">
             <Bar
-              v-if="stats.category_revenue?.labels?.length"
-              :data="categoryChartData"
+              v-if="ch.type === 'bar' && ch.labels?.length"
+              :data="toChartData(ch)"
               :options="barChartOptions"
             />
-            <div v-else class="no-data">暂无数据</div>
-          </div>
-        </div>
-
-        <div class="chart-card">
-          <div class="chart-card-header">
-            <h3>月度销售趋势</h3>
-          </div>
-          <div class="chart-card-body">
             <Line
-              v-if="stats.monthly_trend?.labels?.length"
-              :data="monthlyTrendData"
+              v-else-if="ch.type === 'line' && ch.labels?.length"
+              :data="toChartData(ch)"
               :options="lineChartOptions"
             />
-            <div v-else class="no-data">暂无数据</div>
-          </div>
-        </div>
-
-        <div class="chart-card">
-          <div class="chart-card-header">
-            <h3>省份销售分布</h3>
-          </div>
-          <div class="chart-card-body">
             <Pie
-              v-if="stats.province_distribution?.labels?.length"
-              :data="provincePieData"
+              v-else-if="ch.type === 'pie' && ch.labels?.length"
+              :data="toPieData(ch)"
               :options="pieChartOptions"
             />
             <div v-else class="no-data">暂无数据</div>
           </div>
         </div>
       </section>
+
+      <!-- Tables summary -->
+      <section class="tables-panel" v-if="stats.tables_summary?.length">
+        <div class="panel-head">
+          <h3>表概览</h3>
+          <span class="muted">共 {{ stats.tables_summary.length }} 张表</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>表名</th>
+                <th>列数</th>
+                <th>行数</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in stats.tables_summary" :key="t.name">
+                <td class="mono">{{ t.name }}</td>
+                <td>{{ t.columns }}</td>
+                <td>{{ formatNumber(t.rows) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div v-else class="loading-state">
       <div class="typing-dots"><span></span><span></span><span></span></div>
-      <span>加载看板数据…</span>
+      <span>正在根据数据源结构生成看板…</span>
     </div>
   </div>
 </template>
@@ -167,6 +142,13 @@ const selectedDsId = ref('')
 const emptyStats = () => ({
   datasource_id: '',
   datasource_name: '',
+  profile: '',
+  profile_label: '',
+  schema_ok: true,
+  message: '',
+  kpis: [],
+  charts: [],
+  tables_summary: [],
   total_revenue: 0,
   total_orders: 0,
   total_customers: 0,
@@ -174,51 +156,65 @@ const emptyStats = () => ({
   category_revenue: { labels: [], data: [] },
   monthly_trend: { labels: [], data: [] },
   province_distribution: { labels: [], data: [] },
-  schema_ok: true,
-  message: '',
 })
 
 const stats = ref(emptyStats())
 
-const categoryChartData = computed(() => ({
-  labels: stats.value.category_revenue?.labels || [],
-  datasets: [{
-    label: '销售额 (元)',
-    data: stats.value.category_revenue?.data || [],
-    backgroundColor: CHART_COLORS.slice(0, (stats.value.category_revenue?.labels || []).length),
-    borderRadius: 6,
-  }],
-}))
+/** 优先用新结构 kpis；否则回退旧字段 */
+const displayKpis = computed(() => {
+  if (stats.value.kpis?.length) return stats.value.kpis
+  // legacy fallback
+  return [
+    { key: 'revenue', label: '总销售额', value: stats.value.total_revenue, format: 'currency', icon: 'revenue' },
+    { key: 'orders', label: '订单数', value: stats.value.total_orders, format: 'number', icon: 'orders' },
+    { key: 'customers', label: '客户数', value: stats.value.total_customers, format: 'number', icon: 'customers' },
+    { key: 'refund', label: '退款率', value: stats.value.refund_rate, format: 'percent', icon: 'refund' },
+  ].filter((k) => k.value !== undefined && k.value !== null)
+})
 
-const monthlyTrendData = computed(() => ({
-  labels: stats.value.monthly_trend?.labels || [],
-  datasets: [{
-    label: '销售额 (元)',
-    data: stats.value.monthly_trend?.data || [],
-    borderColor: CHART_COLORS[0],
-    backgroundColor: CHART_COLORS[0] + '20',
-    fill: true,
-    tension: 0.3,
-    pointBackgroundColor: CHART_COLORS[0],
-  }],
-}))
-
-const provincePieData = computed(() => ({
-  labels: stats.value.province_distribution?.labels || [],
-  datasets: [{
-    data: stats.value.province_distribution?.data || [],
-    backgroundColor: CHART_COLORS.slice(0, (stats.value.province_distribution?.labels || []).length),
-    borderWidth: 2,
-    borderColor: '#fff',
-  }],
-}))
+const displayCharts = computed(() => {
+  if (stats.value.charts?.length) return stats.value.charts
+  const out = []
+  if (stats.value.category_revenue?.labels?.length) {
+    out.push({
+      id: 'legacy_cat',
+      title: '分类排名',
+      type: 'bar',
+      labels: stats.value.category_revenue.labels,
+      data: stats.value.category_revenue.data,
+      dataset_label: '数值',
+      wide: true,
+    })
+  }
+  if (stats.value.monthly_trend?.labels?.length) {
+    out.push({
+      id: 'legacy_trend',
+      title: '时间趋势',
+      type: 'line',
+      labels: stats.value.monthly_trend.labels,
+      data: stats.value.monthly_trend.data,
+      dataset_label: '数值',
+    })
+  }
+  if (stats.value.province_distribution?.labels?.length) {
+    out.push({
+      id: 'legacy_pie',
+      title: '分布',
+      type: 'pie',
+      labels: stats.value.province_distribution.labels,
+      data: stats.value.province_distribution.data,
+      dataset_label: '数值',
+    })
+  }
+  return out
+})
 
 const barChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: { legend: { display: false } },
   scales: {
-    x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+    x: { ticks: { font: { size: 11 }, maxRotation: 45, minRotation: 0 }, grid: { display: false } },
     y: { ticks: { font: { size: 11 } }, grid: { color: '#f1f5f9' } },
   },
 }
@@ -244,11 +240,67 @@ const pieChartOptions = {
   },
 }
 
+function typeLabel(t) {
+  return ({ bar: '柱状图', line: '折线图', pie: '饼图' })[t] || t
+}
+
+function toChartData(ch) {
+  const n = ch.labels?.length || 0
+  if (ch.type === 'line') {
+    return {
+      labels: ch.labels,
+      datasets: [{
+        label: ch.dataset_label || '数值',
+        data: ch.data,
+        borderColor: CHART_COLORS[0],
+        backgroundColor: CHART_COLORS[0] + '22',
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: CHART_COLORS[0],
+      }],
+    }
+  }
+  return {
+    labels: ch.labels,
+    datasets: [{
+      label: ch.dataset_label || '数值',
+      data: ch.data,
+      backgroundColor: CHART_COLORS.slice(0, Math.max(n, 1)),
+      borderRadius: 6,
+    }],
+  }
+}
+
+function toPieData(ch) {
+  const n = ch.labels?.length || 0
+  return {
+    labels: ch.labels,
+    datasets: [{
+      data: ch.data,
+      backgroundColor: CHART_COLORS.slice(0, Math.max(n, 1)),
+      borderWidth: 2,
+      borderColor: '#fff',
+    }],
+  }
+}
+
+function formatNumber(val) {
+  const num = Number(val) || 0
+  return num.toLocaleString()
+}
+
 function formatCurrency(val) {
   if (!val) return '¥ 0'
   const num = Number(val)
-  if (num >= 10000) return '¥ ' + (num / 10000).toFixed(1) + '万'
+  if (Math.abs(num) >= 10000) return '¥ ' + (num / 10000).toFixed(1) + '万'
   return '¥ ' + num.toLocaleString()
+}
+
+function formatValue(val, fmt) {
+  if (fmt === 'currency') return formatCurrency(val)
+  if (fmt === 'percent') return `${val ?? 0}%`
+  if (fmt === 'text') return String(val ?? '-')
+  return formatNumber(val)
 }
 
 async function loadDatasources() {
@@ -323,6 +375,20 @@ onMounted(async () => {
   margin: 0;
   font-size: 12px;
   color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
 }
 
 .header-right {
@@ -357,7 +423,7 @@ onMounted(async () => {
   color: #0f172a;
   outline: none;
   min-width: 160px;
-  max-width: 260px;
+  max-width: 280px;
   font-family: inherit;
 }
 
@@ -398,9 +464,14 @@ onMounted(async () => {
   color: #92400e;
 }
 
+.banner.info {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #3730a3;
+}
+
 .dash-content {
   width: 100%;
-  max-width: none;
   margin: 0;
   padding: 20px 28px 28px;
   box-sizing: border-box;
@@ -438,12 +509,15 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-weight: 800;
+  font-size: 16px;
 }
 
 .stat-icon.revenue { background: #eef2ff; color: #4f46e5; }
 .stat-icon.orders { background: #ecfdf5; color: #10b981; }
 .stat-icon.customers { background: #ecfeff; color: #0891b2; }
 .stat-icon.refund { background: #fef2f2; color: #ef4444; }
+.stat-icon.generic { background: #f1f5f9; color: #475569; }
 
 .stat-info {
   display: flex;
@@ -462,12 +536,14 @@ onMounted(async () => {
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
+  word-break: break-all;
 }
 
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+  margin-bottom: 18px;
 }
 
 .chart-card {
@@ -485,6 +561,10 @@ onMounted(async () => {
 .chart-card-header {
   padding: 14px 18px;
   border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .chart-card-header h3 {
@@ -493,19 +573,83 @@ onMounted(async () => {
   font-weight: 700;
 }
 
+.chart-type {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 .chart-card-body {
   padding: 16px 18px 18px;
-  height: 320px;
+  height: 300px;
   position: relative;
 }
 
-.no-data {
+.no-data, .empty-hint {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
   color: #94a3b8;
   font-size: 13px;
+  padding: 24px;
+}
+
+.tables-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.panel-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.muted {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.table-wrap {
+  overflow: auto;
+  max-height: 280px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th, td {
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #334155;
 }
 
 .loading-state {
@@ -555,8 +699,8 @@ onMounted(async () => {
   .charts-grid {
     grid-template-columns: 1fr;
   }
-  .ds-picker select {
-    min-width: 120px;
+  .chart-card.chart-wide {
+    grid-column: auto;
   }
 }
 </style>

@@ -4,8 +4,16 @@
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-header">
         <button class="btn-new-chat" @click="handleNewChat">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           <span>新对话</span>
         </button>
@@ -17,13 +25,31 @@
           v-for="conv in store.conversations"
           :key="conv.conversation_id"
           class="history-item"
-          :class="{ active: conv.conversation_id === store.currentConversationId }"
+          :class="{
+            active: conv.conversation_id === store.currentConversationId,
+          }"
           @click="store.loadConversation(conv.conversation_id)"
         >
-          <div class="history-item-text">{{ conv.last_message || '新对话' }}</div>
-          <button class="btn-delete" @click.stop="store.removeConversation(conv.conversation_id)" title="删除">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <div class="history-item-text">
+            {{ conv.last_message || "新对话" }}
+          </div>
+          <button
+            class="btn-delete"
+            @click.stop="store.removeConversation(conv.conversation_id)"
+            title="删除"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              />
             </svg>
           </button>
         </div>
@@ -34,7 +60,7 @@
 
       <div class="sidebar-footer">
         <div class="status-dot" :class="{ online: systemOk }"></div>
-        <span>{{ systemOk ? '系统就绪' : '连接中...' }}</span>
+        <span>{{ systemOk ? "系统就绪" : "连接中..." }}</span>
       </div>
 
       <div class="sidebar-upload">
@@ -47,8 +73,17 @@
       <!-- 顶部栏 -->
       <header class="topbar">
         <button class="btn-menu" @click="sidebarOpen = !sidebarOpen">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
         <h1 class="title">智能问数</h1>
@@ -59,13 +94,17 @@
               :class="{ active: store.chatMode === 'pipeline' }"
               :disabled="store.isStreaming || store.isLoading"
               @click="store.setChatMode('pipeline')"
-            >Pipeline</button>
+            >
+              Pipeline
+            </button>
             <button
               class="mode-btn"
               :class="{ active: store.chatMode === 'agent' }"
               :disabled="store.isStreaming || store.isLoading"
               @click="store.setChatMode('agent')"
-            >Agent</button>
+            >
+              Agent
+            </button>
           </div>
           <select
             class="ds-select"
@@ -75,7 +114,7 @@
             title="选择数据源"
           >
             <option v-for="ds in store.datasources" :key="ds.id" :value="ds.id">
-              {{ ds.name }}{{ ds.is_default ? '（默认）' : '' }}
+              {{ ds.name }}{{ ds.is_default ? "（默认）" : "" }}
             </option>
           </select>
           <ModelSelector
@@ -84,7 +123,10 @@
           />
         </div>
         <div class="topbar-actions">
-          <span class="response-badge" v-if="lastMsg?.responseTimeMs && !store.isStreaming">
+          <span
+            class="response-badge"
+            v-if="lastMsg?.responseTimeMs && !store.isStreaming"
+          >
             {{ lastMsg.responseTimeMs }}ms
           </span>
         </div>
@@ -95,13 +137,27 @@
         <!-- 欢迎页 -->
         <div v-if="store.messages.length === 0" class="welcome">
           <div class="welcome-icon">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              <line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/>
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--primary)"
+              stroke-width="1.5"
+            >
+              <path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              />
+              <line x1="9" y1="10" x2="15" y2="10" />
+              <line x1="12" y1="7" x2="12" y2="13" />
             </svg>
           </div>
-          <h2>智能电商数据问答助手</h2>
-          <p>基于 NL2SQL + RAG + ReAct Agent，支持对订单、客户、商品、退款与销售目标做自然语言查询与可视化分析</p>
+          <h2>智能问数助手</h2>
+          <p>
+            基于 NL2SQL + RAG + ReAct Agent。当前数据源：
+            <strong>{{ currentDsName }}</strong>
+            — 用自然语言查询、分析并可视化（多数据源可切换）
+          </p>
           <div class="example-questions">
             <span class="example-label">试试这些问题：</span>
             <button
@@ -109,7 +165,9 @@
               :key="q"
               class="example-btn"
               @click="handleExampleClick(q)"
-            >{{ q }}</button>
+            >
+              {{ q }}
+            </button>
           </div>
         </div>
 
@@ -118,7 +176,9 @@
           <template v-for="msg in store.messages" :key="msg.id">
             <!-- 用户消息 / 已有内容的助手消息 -->
             <ChatMessage
-              v-if="!(msg.role === 'assistant' && msg.isStreaming && !msg.content)"
+              v-if="
+                !(msg.role === 'assistant' && msg.isStreaming && !msg.content)
+              "
               :message="msg"
             />
           </template>
@@ -131,7 +191,10 @@
           />
 
           <!-- 非流式加载 -->
-          <div v-if="store.isLoading && !store.isStreaming" class="loading-indicator">
+          <div
+            v-if="store.isLoading && !store.isStreaming"
+            class="loading-indicator"
+          >
             <div class="typing-dots">
               <span></span><span></span><span></span>
             </div>
@@ -139,17 +202,41 @@
           </div>
 
           <!-- 推荐问题 -->
-          <div v-if="store.recommendedQuestions.length > 0 && !store.isStreaming" class="recommended-questions">
+          <div
+            v-if="store.recommendedQuestions.length > 0 && !store.isStreaming"
+            class="recommended-questions"
+          >
             <div class="recommend-label">换个问题试试：</div>
             <button
               v-for="q in store.recommendedQuestions"
               :key="q"
               class="recommend-btn"
               @click="handleExampleClick(q)"
-            >{{ q }}</button>
+            >
+              {{ q }}
+            </button>
           </div>
         </div>
       </div>
+
+      <!-- 滚动到底部按钮 -->
+      <button
+        v-if="showScrollBtn"
+        class="scroll-bottom-btn"
+        @click="scrollToBottom"
+        title="滚动到底部"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
 
       <!-- 输入区 -->
       <div class="input-area">
@@ -163,121 +250,173 @@
     </main>
 
     <!-- 移动端遮罩 -->
-    <div v-if="sidebarOpen" class="mobile-overlay" @click="sidebarOpen = false"></div>
+    <div
+      v-if="sidebarOpen"
+      class="mobile-overlay"
+      @click="sidebarOpen = false"
+    ></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { useChatStore } from '../stores/chat'
-import { healthCheck } from '../api'
-import ChatMessage from '../components/ChatMessage.vue'
-import ChatInput from '../components/ChatInput.vue'
-import FileUpload from '../components/FileUpload.vue'
-import ThinkingIndicator from '../components/ThinkingIndicator.vue'
-import ModelSelector from '../components/ModelSelector.vue'
-import { storeToRefs } from 'pinia'
+import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { useChatStore } from "../stores/chat";
+import { healthCheck } from "../api";
+import ChatMessage from "../components/ChatMessage.vue";
+import ChatInput from "../components/ChatInput.vue";
+import FileUpload from "../components/FileUpload.vue";
+import ThinkingIndicator from "../components/ThinkingIndicator.vue";
+import ModelSelector from "../components/ModelSelector.vue";
+import { storeToRefs } from "pinia";
 
-const store = useChatStore()
-const { isStreaming, messages, chatMode } = storeToRefs(store)
-const sidebarOpen = ref(window.innerWidth > 900)
-const systemOk = ref(false)
-const chatAreaRef = ref(null)
-const modelLabel = ref('DeepSeek')
+const store = useChatStore();
+const { isStreaming, messages, chatMode } = storeToRefs(store);
+const sidebarOpen = ref(window.innerWidth > 900);
+const systemOk = ref(false);
+const chatAreaRef = ref(null);
+const modelLabel = ref("DeepSeek");
+const showScrollBtn = ref(false);
 
-const lastMsg = computed(() => store.lastMessage)
+const lastMsg = computed(() => store.lastMessage);
 
 /** 已发出请求、尚未收到任何正文 chunk */
 const isThinking = computed(() => {
-  const m = lastMsg.value
+  const m = lastMsg.value;
   return !!(
     store.isStreaming &&
     m &&
-    m.role === 'assistant' &&
+    m.role === "assistant" &&
     m.isStreaming &&
     !(m.content && String(m.content).trim())
-  )
-})
+  );
+});
 
 const thinkingTitle = computed(() =>
-  chatMode.value === 'agent' ? 'Agent 正在思考' : '模型正在思考'
-)
+  chatMode.value === "agent" ? "Agent 正在思考" : "模型正在思考",
+);
 
 const thinkingSubtitle = computed(() => {
-  const name = modelLabel.value || 'DeepSeek'
-  return chatMode.value === 'agent'
+  const name = modelLabel.value || "DeepSeek";
+  return chatMode.value === "agent"
     ? `${name} · 规划工具调用与分析步骤…`
-    : `${name} · 理解问题、生成 SQL 并撰写回答…`
-})
+    : `${name} · 理解问题、生成 SQL 并撰写回答…`;
+});
 
 function onModelChanged(data) {
-  modelLabel.value = data?.label || data?.model || 'DeepSeek'
+  modelLabel.value = data?.label || data?.model || "DeepSeek";
 }
 
 function onDatasourceChange(e) {
-  store.setDatasourceId(e.target.value)
+  store.setDatasourceId(e.target.value);
 }
 
 // 流式输出时跟随滚动
 watch(
   () => [isStreaming.value, lastMsg.value?.content, isThinking.value],
   () => {
-    if (isStreaming.value || isThinking.value) scrollToBottom()
+    if (isStreaming.value || isThinking.value) scrollToBottom();
   },
-)
+);
 watch(
   () => messages.value.length,
   () => scrollToBottom(),
-)
+);
 
-const exampleQuestions = [
-  '2024年各月销售额趋势是怎样的？',
-  '销售额排名前5的省份是哪些？',
-  '各会员等级的消费总额对比如何？',
-  '有折扣的订单占比是多少？',
-  '退款率最高的品类是什么？',
-]
+/** 监听聊天区域滚动，显示/隐藏“回到底部”按钮 */
+function handleChatScroll() {
+  const el = chatAreaRef.value;
+  if (!el) return;
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  showScrollBtn.value = !atBottom && messages.value.length > 0;
+}
+
+const currentDsName = computed(() => {
+  const id = store.datasourceId;
+  const ds = (store.datasources || []).find((d) => d.id === id);
+  return ds?.name || "默认数据源";
+});
+
+/** 示例问题随数据源名称做轻量适配（通用问法，避免写死电商） */
+const exampleQuestions = computed(() => {
+  const name = (currentDsName.value || "").toLowerCase();
+  if (name.includes("医院") || name.includes("hospital")) {
+    return [
+      "有哪些表？",
+      "患者一共有多少人？",
+      "各专科的预约量排名？",
+      "预约状态分布如何？",
+      "账单金额按状态汇总？",
+    ];
+  }
+  if (name.includes("物流") || name.includes("logistic")) {
+    return [
+      "有哪些表？",
+      "行程一共有多少条？",
+      "各 trip_status 的数量？",
+      "按月统计行程量趋势？",
+      "行程与运单关联后有多少行？",
+    ];
+  }
+  if (name.includes("电商") || name.includes("演示")) {
+    return [
+      "2024年各月销售额趋势是怎样的？",
+      "销售额排名前5的省份是哪些？",
+      "各会员等级的消费总额对比如何？",
+      "有折扣的订单占比是多少？",
+      "退款率最高的品类是什么？",
+    ];
+  }
+  return [
+    "当前数据源有哪些表？",
+    "最大的表大概有多少行？",
+    "挑一张表按某个分类字段做数量统计",
+    "有没有可以按月份看的趋势？",
+    "两张有关联的表 JOIN 后怎么统计？",
+  ];
+});
 
 async function checkHealth() {
   try {
-    await healthCheck()
-    systemOk.value = true
+    await healthCheck();
+    systemOk.value = true;
   } catch {
-    systemOk.value = false
+    systemOk.value = false;
   }
 }
 
 function handleNewChat() {
-  store.newConversation()
+  store.newConversation();
 }
 
 function handleExampleClick(q) {
-  store.sendStream(q)
+  store.sendStream(q);
 }
 
 function handleSend(question) {
-  store.sendStream(question)
-  nextTick(() => scrollToBottom())
+  store.sendStream(question);
+  nextTick(() => scrollToBottom());
 }
 
 function scrollToBottom() {
   nextTick(() => {
-    const el = chatAreaRef.value
-    if (el) el.scrollTop = el.scrollHeight
-  })
+    const el = chatAreaRef.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
 }
 
 // 监听窗口大小
 function handleResize() {
-  sidebarOpen.value = window.innerWidth > 768
+  sidebarOpen.value = window.innerWidth > 768;
 }
 
 onMounted(() => {
-  checkHealth()
-  store.loadHistory()
-  store.loadDatasources()
-  window.addEventListener('resize', handleResize)
-})
+  checkHealth();
+  store.loadHistory();
+  store.loadDatasources();
+  window.addEventListener("resize", handleResize);
+  // 监听聊天区域滚动
+  chatAreaRef.value?.addEventListener("scroll", handleChatScroll);
+});
 </script>
 
 <style scoped>
@@ -322,7 +461,7 @@ onMounted(() => {
 
 .sidebar-header {
   padding: 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .logo {
@@ -384,7 +523,7 @@ onMounted(() => {
 }
 
 .history-item:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .history-item.active {
@@ -417,7 +556,7 @@ onMounted(() => {
 
 .btn-delete:hover {
   color: var(--danger);
-  background: rgba(239,68,68,0.1);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .history-empty {
@@ -429,7 +568,7 @@ onMounted(() => {
 
 .sidebar-footer {
   padding: 16px 20px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -451,7 +590,7 @@ onMounted(() => {
 
 .sidebar-upload {
   padding: 0 12px 12px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-km {
@@ -465,9 +604,9 @@ onMounted(() => {
   gap: 6px;
   width: 100%;
   padding: 8px 12px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   color: #94a3b8;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -488,6 +627,8 @@ onMounted(() => {
   min-width: 0;
   min-height: 0;
   height: 100%;
+  position: relative;
+  position: relative;  /* 为滚动按钮提供定位上下文 */
   overflow: hidden;
   background: var(--bg);
 }
@@ -548,7 +689,7 @@ onMounted(() => {
 .mode-btn.active {
   background: #fff;
   color: var(--primary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .mode-btn:disabled {
   opacity: 0.5;
@@ -609,7 +750,11 @@ onMounted(() => {
   padding: 24px 20px 12px;
   scroll-behavior: smooth;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(79, 70, 229, 0.07), transparent),
+    radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(79, 70, 229, 0.07),
+      transparent
+    ),
     var(--bg);
 }
 
@@ -721,8 +866,12 @@ onMounted(() => {
   animation: pulse 1.4s infinite ease-in-out;
 }
 
-.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 .loading-text {
   font-size: 13px;
@@ -762,6 +911,38 @@ onMounted(() => {
   background: var(--primary-light);
 }
 
+/* ===== 滚动到底部按钮 ===== */
+.scroll-bottom-btn {
+  position: absolute;
+  bottom: 88px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  z-index: 20;
+  transition: all 0.15s;
+  animation: fadeIn 0.2s ease;
+}
+
+.scroll-bottom-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.15);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ===== 输入区：固定在主内容区底部，不随消息滚动 ===== */
 .input-area {
   flex: 0 0 auto;
@@ -778,11 +959,25 @@ onMounted(() => {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 99;
 }
 
 /* ===== 响应式 ===== */
+
+/* 平板：侧栏默认收起 */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+  }
+  .topbar-center {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* 移动端 */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -815,6 +1010,40 @@ onMounted(() => {
 
   .input-area {
     padding: 12px;
+  }
+
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .ds-select {
+    max-width: 140px;
+  }
+}
+
+/* 小屏手机 */
+@media (max-width: 640px) {
+  .sidebar {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .welcome p {
+    font-size: 13px;
+  }
+
+  .example-btn {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .topbar-center {
+    display: none;
+  }
+
+  .scroll-bottom-btn {
+    bottom: 76px;
+    right: 16px;
   }
 }
 </style>

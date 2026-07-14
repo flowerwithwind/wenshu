@@ -4,6 +4,7 @@ const api = axios.create({
   baseURL: '/api',
   timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // 携带 httpOnly Cookie
 })
 
 // 健康检查
@@ -44,6 +45,19 @@ export const updateDatasource = (id, data) => api.put(`/datasources/${id}`, data
 export const deleteDatasource = (id) => api.delete(`/datasources/${id}`)
 export const testDatasource = (data) => api.post('/datasources/test', data)
 export const getAuditLogs = (params = {}) => api.get('/datasources/audit/logs', { params })
+export const getDatasourceTables = (id) => api.get(`/datasources/${id}/tables`)
+export const importToDatasource = (id, file, tableName = null, useLlm = false) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (tableName) formData.append('table_name', tableName)
+  if (useLlm) formData.append('use_llm', 'true')
+  return api.post(`/datasources/${id}/import`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 180000,
+  })
+}
+export const bootstrapKnowledge = (id, { useLlm = false, merge = true } = {}) =>
+  api.post(`/datasources/${id}/bootstrap-knowledge`, { use_llm: useLlm, merge })
 
 // Agent 非流式
 export const sendAgentMessage = (question, conversationId = null) =>
@@ -82,14 +96,25 @@ export const uploadFile = (file, tableName = null, config = {}) => {
   })
 }
 
-// 知识库管理
-export const getKnowledge = () => api.get('/knowledge')
-export const getKnowledgeStats = () => api.get('/knowledge/stats')
+// 知识库管理（按数据源隔离）
+export const getKnowledge = (datasourceId = null) =>
+  api.get('/knowledge/', { params: datasourceId ? { datasource_id: datasourceId } : {} })
+export const getKnowledgeStats = (datasourceId = null) =>
+  api.get('/knowledge/stats', { params: datasourceId ? { datasource_id: datasourceId } : {} })
 export const createExample = (data) => api.post('/knowledge/examples', data)
-export const deleteExample = (index) => api.delete(`/knowledge/examples/${index}`)
+export const deleteExample = (index, datasourceId = null) =>
+  api.delete(`/knowledge/examples/${index}`, {
+    params: datasourceId ? { datasource_id: datasourceId } : {},
+  })
 export const createSynonym = (data) => api.post('/knowledge/synonyms', data)
-export const deleteSynonym = (index) => api.delete(`/knowledge/synonyms/${index}`)
+export const deleteSynonym = (index, datasourceId = null) =>
+  api.delete(`/knowledge/synonyms/${index}`, {
+    params: datasourceId ? { datasource_id: datasourceId } : {},
+  })
 export const createDomainMapping = (data) => api.post('/knowledge/domain-mappings', data)
-export const deleteDomainMapping = (index) => api.delete(`/knowledge/domain-mappings/${index}`)
+export const deleteDomainMapping = (index, datasourceId = null) =>
+  api.delete(`/knowledge/domain-mappings/${index}`, {
+    params: datasourceId ? { datasource_id: datasourceId } : {},
+  })
 
 export default api

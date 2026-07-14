@@ -358,7 +358,7 @@ class TestDatasetAPI:
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "ok"
-            assert data["chunks_created"] == 99
+            assert data["chunks_written"] == 99
 
 
 # ===== 知识库 API =====

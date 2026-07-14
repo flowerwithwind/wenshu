@@ -27,11 +27,29 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from app.config import HOST, PORT, CORS_ORIGINS
+
+# === 路由导入（统一在此处，避免散落注册） ===
 from app.routes.chat import router as chat_router
+from app.routes.upload import upload_router
+from app.routes.export import export_router
+from app.routes.knowledge import knowledge_router
+from app.routes.analytics import analytics_router
+from app.routes.feedback import feedback_router
+from app.routes.evaluation import evaluation_router
+from app.routes.models import models_router
+from app.routes.datasource import datasource_router
+from app.routes.auth import auth_router
+
+# === 核心模块 ===
 from app.rag.pipeline import get_pipeline
-from app.nl2sql.database import init_database, is_database_ready
+from app.nl2sql.database import init_database
 from app.nl2sql.pipeline import get_nl2sql_pipeline
-from app.middleware.rate_limit import check_rate_limit, build_rate_limit_response
+from app.auth.models import init_auth_db
+from app.middleware.rate_limit import (
+    check_rate_limit,
+    build_rate_limit_response,
+    RateLimitExceededError,
+)
 from app.logger import get_logger, RequestIDFilter
 from app.tracing import setup_tracing
 
@@ -50,6 +68,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         logger.info("数据库: 就绪")
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
+
+    logger.info("[1.5] 初始化认证数据库...")
+    try:
+        init_auth_db()
+    except Exception as e:
+        logger.error(f"认证数据库初始化失败: {e}")
 
     logger.info("[2] 初始化 RAG 向量存储（辅助）...")
     pipeline = None
@@ -114,11 +138,8 @@ async def request_context_middleware(request: Request, call_next) -> Response:
     logger.info(f"{request.method} {request.url.path} - 请求开始")
     try:
         await check_rate_limit(request)
-    except Exception as e:
-        # 仅限流异常返回 429；其他异常继续抛出，避免被误判为限流
-        from app.middleware.rate_limit import RateLimitExceededError
-        if not isinstance(e, RateLimitExceededError):
-            raise
+    except RateLimitExceededError as e:
+        # 限流超限直接返回 429，不再向上传播
         logger.warning(f"限流触发: {request.client.host if request.client else 'unknown'}")
         return JSONResponse(
             status_code=429,
@@ -128,24 +149,22 @@ async def request_context_middleware(request: Request, call_next) -> Response:
     logger.info(f"{request.method} {request.url.path} - {response.status_code}")
     return response
 
-# 注册路由
-app.include_router(chat_router)
-from app.routes.upload import upload_router
-app.include_router(upload_router)
-from app.routes.export import export_router
-app.include_router(export_router)
-from app.routes.knowledge import knowledge_router
-app.include_router(knowledge_router)
-from app.routes.analytics import analytics_router
-app.include_router(analytics_router)
-from app.routes.feedback import feedback_router
-app.include_router(feedback_router)
-from app.routes.evaluation import evaluation_router
-app.include_router(evaluation_router)
-from app.routes.models import models_router
-app.include_router(models_router)
-from app.routes.datasource import datasource_router
-app.include_router(datasource_router)
+
+# === 路由统一注册 ===
+_ALL_ROUTERS = [
+    chat_router,
+    upload_router,
+    export_router,
+    knowledge_router,
+    analytics_router,
+    feedback_router,
+    evaluation_router,
+    models_router,
+    datasource_router,
+    auth_router,
+]
+for _router in _ALL_ROUTERS:
+    app.include_router(_router)
 
 
 @app.get("/")
@@ -153,7 +172,7 @@ async def root() -> dict[str, str]:
     """根路径"""
     return {
         "service": "智能问数系统",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "docs": "/docs",
     }
 

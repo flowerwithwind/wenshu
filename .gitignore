@@ -79,6 +79,11 @@ backend/data/llm_settings.json
 backend/data/datasources.json
 backend/data/sql_audit.jsonl
 backend/data/.ds_secret_key
+# 用户数据源 SQLite 与按库隔离的知识库
+backend/data/user_dbs/
+backend/data/knowledge/
+backend/data/_kaggle_dl/
+backend/data/_kaggle_tmp/
 # 历史错误路径（相对路径写错时产生的嵌套目录）
 backend/data/data/
 *.db

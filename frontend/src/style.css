@@ -1,22 +1,61 @@
 /* ===== 全局样式 ===== */
 :root {
+  /* 主色调 */
   --primary: #4f46e5;
   --primary-hover: #4338ca;
   --primary-light: #eef2ff;
+  --primary-muted: rgba(79, 70, 229, 0.08);
+
+  /* 语义色 */
   --success: #10b981;
+  --success-light: #ecfdf5;
   --warning: #f59e0b;
+  --warning-light: #fffbeb;
   --danger: #ef4444;
+  --danger-light: #fef2f2;
+  --info: #3b82f6;
+
+  /* 背景层 */
   --bg: #f1f5f9;
   --bg-card: #ffffff;
   --bg-sidebar: #0f172a;
+  --bg-elevated: #ffffff;
+  --bg-input: #f8fafc;
+
+  /* 文字层 */
   --text: #0f172a;
   --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-inverse: #ffffff;
+
+  /* 边框 */
   --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --border-focus: #818cf8;
+
+  /* 阴影层级 */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.1);
+
+  /* 圆角 */
   --radius: 14px;
   --radius-sm: 10px;
+  --radius-xs: 6px;
+  --radius-full: 9999px;
+
+  /* 过渡 */
   --transition: 0.18s ease;
+  --transition-fast: 0.1s ease;
+  --transition-slow: 0.3s ease;
+
+  /* 间距 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
 }
 
 * {
@@ -40,6 +79,34 @@ body {
   color: var(--text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ===== 焦点可见（无障碍） ===== */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* 按钮/链接 focus 时移除默认轮廓，用 box-shadow 替代 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ===== 无障碍：减少动画偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ===== 滚动条 ===== */

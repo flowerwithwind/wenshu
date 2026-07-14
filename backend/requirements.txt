@@ -39,6 +39,8 @@ cachetools==5.5.0
 # Security
 sqlparse==0.5.2
 cryptography>=42.0.0
+PyJWT>=2.8.0
+bcrypt>=4.1.0
 
 # Multi-datasource
 SQLAlchemy>=2.0.0

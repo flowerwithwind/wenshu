@@ -17,12 +17,16 @@ _cache: dict[str, DataSource] = {}
 
 
 def _build_from_record(rec: dict[str, Any]) -> DataSource:
+    from app.datasources.manager import resolve_sqlite_path
+
     ds_type = (rec.get("type") or "sqlite").lower()
     ds_id = rec["id"]
     if ds_type == "sqlite" or ds_id == BUILTIN_SQLITE_ID:
+        db_path = resolve_sqlite_path(rec)
         return SqliteDataSource(
             ds_id=ds_id,
             name=rec.get("name") or "SQLite",
+            db_path=db_path,
             is_default=bool(rec.get("is_default")),
             is_builtin=bool(rec.get("is_builtin")),
             description=rec.get("description") or "",
@@ -103,8 +107,17 @@ def get_default_datasource() -> DataSource:
 
 def list_runtime_datasources() -> list[dict[str, Any]]:
     from app.datasources.manager import public_record
+    from app.services.ds_import import list_tables
 
-    return [public_record(r) for r in list_datasource_records()]
+    items: list[dict[str, Any]] = []
+    for r in list_datasource_records():
+        tc: int | None = None
+        try:
+            tc = len(list_tables(r["id"]))
+        except Exception:
+            tc = None
+        items.append(public_record(r, table_count=tc))
+    return items
 
 
 def execute_with_audit(

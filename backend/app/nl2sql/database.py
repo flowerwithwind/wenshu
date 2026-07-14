@@ -164,32 +164,61 @@ def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
 
 
 def get_schema_info(db_path: str = DB_PATH) -> str:
-    """获取所有表的 Schema 信息（供 NL2SQL 提示词使用）"""
+    """获取所有表的 Schema 信息（供 NL2SQL 提示词使用）。
+
+    - 内置电商库：带中文业务说明与 JOIN 关系
+    - 其它 SQLite 文件：自动 introspect 全部用户表
+    """
     conn: sqlite3.Connection = get_connection(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
 
     schema_parts: list[str] = []
-    for csv_file, info in CSV_TABLE_MAP.items():
-        table_name: str = info["table"]
-        try:
-            cursor.execute(f"SELECT * FROM [{table_name}] LIMIT 0")
-            columns: list[str] = [desc[0] for desc in cursor.description]
-            cursor.execute(f"SELECT * FROM [{table_name}] LIMIT 1")
-            sample_row: sqlite3.Row | None = cursor.fetchone()
+    is_builtin_ecommerce = os.path.normpath(db_path) == os.path.normpath(DB_PATH)
 
-            schema_parts.append(f"表 [{table_name}]: {info['description']}")
-            schema_parts.append(f"  列: {', '.join(columns)}")
-            if sample_row:
-                schema_parts.append(f"  示例: {dict(sample_row)}")
-        except sqlite3.OperationalError:
-            pass
+    if is_builtin_ecommerce:
+        for _csv_file, info in CSV_TABLE_MAP.items():
+            table_name: str = info["table"]
+            try:
+                cursor.execute(f"SELECT * FROM [{table_name}] LIMIT 0")
+                columns: list[str] = [desc[0] for desc in cursor.description]
+                cursor.execute(f"SELECT * FROM [{table_name}] LIMIT 1")
+                sample_row: sqlite3.Row | None = cursor.fetchone()
 
-    # 追加 JOIN 关系说明
-    schema_parts.append("\n--- 表关联关系 ---")
-    schema_parts.append("[orders].[客户ID] -> [customers].[客户ID] (INNER JOIN)")
-    schema_parts.append("[orders].[商品ID] -> [products].[商品ID] (INNER JOIN)")
-    schema_parts.append("[refunds].[订单ID] -> [orders].[订单ID] (LEFT JOIN, 退款分析)")
-    schema_parts.append("[orders] vs [monthly_targets]: 通过 年份+月份+品类 关联(达成率分析)")
+                schema_parts.append(f"表 [{table_name}]: {info['description']}")
+                schema_parts.append(f"  列: {', '.join(columns)}")
+                if sample_row:
+                    schema_parts.append(f"  示例: {dict(sample_row)}")
+            except sqlite3.OperationalError:
+                pass
+
+        schema_parts.append("\n--- 表关联关系 ---")
+        schema_parts.append("[orders].[客户ID] -> [customers].[客户ID] (INNER JOIN)")
+        schema_parts.append("[orders].[商品ID] -> [products].[商品ID] (INNER JOIN)")
+        schema_parts.append("[refunds].[订单ID] -> [orders].[订单ID] (LEFT JOIN, 退款分析)")
+        schema_parts.append(
+            "[orders] vs [monthly_targets]: 通过 年份+月份+品类 关联(达成率分析)"
+        )
+    else:
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        )
+        tables = [r[0] for r in cursor.fetchall()]
+        schema_parts.append(f"方言: sqlite；数据库文件: {os.path.basename(db_path)}")
+        schema_parts.append("标识符请用方括号 [table]/[column]")
+        for table_name in tables:
+            try:
+                cursor.execute(f"PRAGMA table_info([{table_name}])")
+                cols_info = cursor.fetchall()
+                columns = [c[1] for c in cols_info]
+                cursor.execute(f"SELECT * FROM [{table_name}] LIMIT 1")
+                sample_row = cursor.fetchone()
+                schema_parts.append(f"表 [{table_name}]: 列: {', '.join(columns)}")
+                if sample_row:
+                    schema_parts.append(f"  示例: {dict(sample_row)}")
+            except sqlite3.OperationalError as e:
+                schema_parts.append(f"表 [{table_name}]: 读取失败 ({e})")
+        if not tables:
+            schema_parts.append("（当前库尚无任何表，请先在数据源管理中导入 CSV/Excel）")
 
     conn.close()
     return "\n".join(schema_parts)
@@ -199,11 +228,13 @@ def execute_sql(sql: str, db_path: str = DB_PATH) -> tuple[list[dict[str, Any]],
     """执行 SQL 查询，返回结果行和列名"""
     _validate_sql_safety(sql)
 
-    # SQL 级别缓存检查
+    # SQL 级别缓存（按库路径隔离，避免多数据源串缓存）
     from app.services.cache import get_cache as get_sql_cache
-    cached: dict | None = get_sql_cache(sql)
+
+    cache_key = f"sql::{os.path.normpath(db_path)}::{sql}"
+    cached: dict | None = get_sql_cache(cache_key)
     if cached:
-        logger.debug(f"SQL 命中缓存")
+        logger.debug("SQL 命中缓存")
         return cached["rows"], cached["columns"]
 
     conn: sqlite3.Connection = get_connection(db_path)
@@ -220,9 +251,9 @@ def execute_sql(sql: str, db_path: str = DB_PATH) -> tuple[list[dict[str, Any]],
 
     conn.close()
 
-    # 缓存 SQL 结果
     from app.services.cache import set_cache as set_sql_cache
-    set_sql_cache(sql, {"rows": rows, "columns": columns})
+
+    set_sql_cache(cache_key, {"rows": rows, "columns": columns})
 
     return rows, columns
 

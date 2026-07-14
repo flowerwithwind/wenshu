@@ -23,6 +23,24 @@
         </router-link>
       </nav>
 
+      <!-- 用户信息 + 登出 -->
+      <div class="nav-user">
+        <div v-if="!collapsed" class="user-info">
+          <div class="user-avatar">{{ userInitial }}</div>
+          <div class="user-detail">
+            <div class="user-name">{{ authStore.displayName }}</div>
+            <button class="btn-logout" @click="handleLogout">登出</button>
+          </div>
+        </div>
+        <button v-else class="btn-logout-icon" title="登出" @click="handleLogout">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+
       <button class="nav-toggle" type="button" @click="collapsed = !collapsed">
         {{ collapsed ? '»' : '« 收起' }}
       </button>
@@ -35,11 +53,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 const collapsed = ref(false)
+
+/** 用户首字母头像 */
+const userInitial = computed(() => {
+  const name = authStore.displayName
+  return name ? name.charAt(0).toUpperCase() : '?'
+})
+
+async function handleLogout() {
+  await authStore.logout()
+  router.push('/login')
+}
 
 const menus = [
   {
@@ -178,6 +210,78 @@ function isActive(item) {
   flex-shrink: 0;
 }
 
+.nav-user {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(129, 140, 248, 0.25);
+  color: #c7d2fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.user-detail {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-logout {
+  border: none;
+  background: none;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.btn-logout:hover {
+  color: #f87171;
+}
+
+.btn-logout-icon {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: #94a3b8;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-logout-icon:hover {
+  color: #f87171;
+}
+
 .nav-toggle {
   margin-top: 12px;
   border: 1px solid rgba(255,255,255,0.08);
@@ -208,6 +312,20 @@ function isActive(item) {
   flex: 1;
   min-height: 0;
   min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .nav-rail {
+    width: 72px;
+  }
+  .nav-rail .brand-text,
+  .nav-rail .nav-label,
+  .nav-rail .nav-toggle {
+    display: none;
+  }
+  .nav-rail .nav-user .user-info {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) {

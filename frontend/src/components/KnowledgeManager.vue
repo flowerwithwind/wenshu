@@ -220,10 +220,15 @@ import {
   deleteDomainMapping,
 } from '../api'
 
-defineProps({
+const props = defineProps({
   embedded: { type: Boolean, default: false },
+  datasourceId: { type: String, default: '' },
 })
 defineEmits(['close'])
+
+function dsId() {
+  return props.datasourceId || null
+}
 
 const tabs = [
   { key: 'stats', label: '概览' },
@@ -254,13 +259,13 @@ function tabCount(key) {
 
 async function loadKnowledge() {
   try {
-    const { data } = await getKnowledge()
+    const { data } = await getKnowledge(dsId())
     knowledge.value = data
   } catch {
     knowledge.value = {}
   }
   try {
-    const { data } = await getKnowledgeStats()
+    const { data } = await getKnowledgeStats(dsId())
     stats.value = data
   } catch {
     stats.value = {}
@@ -276,6 +281,7 @@ async function saveExample() {
       sql: exampleForm.sql,
       tables,
       tags,
+      datasource_id: dsId(),
     })
     showExampleForm.value = false
     Object.assign(exampleForm, { question: '', sql: '', tablesStr: '', tagsStr: '' })
@@ -288,7 +294,7 @@ async function saveExample() {
 async function removeExample(idx) {
   if (!confirm('确认删除此示例？')) return
   try {
-    await deleteExample(idx)
+    await deleteExample(idx, dsId())
     await loadKnowledge()
   } catch {}
 }
@@ -300,6 +306,7 @@ async function saveSynonym() {
       synonyms,
       target_column: synonymForm.target_column,
       table: synonymForm.table,
+      datasource_id: dsId(),
     })
     showSynonymForm.value = false
     Object.assign(synonymForm, { synonymsStr: '', target_column: '', table: '' })
@@ -312,7 +319,7 @@ async function saveSynonym() {
 async function removeSynonym(idx) {
   if (!confirm('确认删除此同义词？')) return
   try {
-    await deleteSynonym(idx)
+    await deleteSynonym(idx, dsId())
     await loadKnowledge()
   } catch {}
 }
@@ -323,6 +330,7 @@ async function saveDomain() {
       term: domainForm.term,
       mapping: domainForm.mapping,
       table: domainForm.table,
+      datasource_id: dsId(),
     })
     showDomainForm.value = false
     Object.assign(domainForm, { term: '', mapping: '', table: '' })
@@ -335,7 +343,7 @@ async function saveDomain() {
 async function removeDomainMapping(idx) {
   if (!confirm('确认删除此领域映射？')) return
   try {
-    await deleteDomainMapping(idx)
+    await deleteDomainMapping(idx, dsId())
     await loadKnowledge()
   } catch {}
 }
