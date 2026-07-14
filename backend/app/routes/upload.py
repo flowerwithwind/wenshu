@@ -5,7 +5,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from app.services.file_upload import (
     validate_file, sanitize_table_name, save_uploaded_file, import_to_database
 )
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 

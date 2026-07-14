@@ -16,7 +16,7 @@ from app.rag.vectorstore import VectorStoreManager
 from app.rag.retriever import SmartRetriever
 from app.rag.generator import RAGGenerator
 from app.models.schemas import SourceDocument
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -34,11 +34,19 @@ class RAGPipeline:
 
     def _init_components(self) -> None:
         """初始化各组件"""
-        # 尝试加载已有向量存储
-        if self.vsm.load():
-            logger.info(f"向量存储已加载，文档数: {self.vsm.get_collection_stats()['total']}")
-        else:
-            logger.warning("向量存储未初始化，请先执行数据预处理")
+        # 尝试加载已有向量存储；损坏时标记未就绪，不中断启动
+        try:
+            if self.vsm.load():
+                stats = self.vsm.get_collection_stats()
+                logger.info(f"向量存储已加载，文档数: {stats.get('total', 0)}")
+            else:
+                logger.warning(
+                    "向量存储未初始化或索引损坏，NL2SQL 仍可用；"
+                    "可调用 POST /api/rebuild-index 或运行 python scripts/preprocess.py 重建"
+                )
+        except Exception as e:
+            logger.warning(f"向量存储加载异常（已降级继续启动）: {e}")
+            self.vsm.vector_store = None
 
         self.retriever = SmartRetriever(self.vsm)
 

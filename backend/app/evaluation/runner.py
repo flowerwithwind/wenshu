@@ -23,7 +23,7 @@ from app.evaluation.metrics import (
 )
 from app.nl2sql.translator import NL2SQLTranslator
 from app.nl2sql.database import get_schema_info
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 

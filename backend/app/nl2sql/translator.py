@@ -11,7 +11,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.models.provider import get_chat_model
 from app.nl2sql.database import get_schema_info
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -90,10 +90,16 @@ SQL: SELECT CAST(STRFTIME('%m', [o].[日期]) AS INTEGER) AS 月份, SUM([o].[�
 
 
 class NL2SQLTranslator:
-    """NL2SQL 翻译器"""
+    """NL2SQL 翻译器（LLM 延迟初始化）"""
 
     def __init__(self) -> None:
-        self.llm = get_chat_model(temperature=0.1, max_tokens=1024)
+        self._llm: BaseChatModel | None = None
+
+    @property
+    def llm(self) -> BaseChatModel:
+        if self._llm is None:
+            self._llm = get_chat_model(temperature=0.1, max_tokens=1024)
+        return self._llm
 
     def translate(
         self,
@@ -221,7 +227,13 @@ class AnswerGenerator:
 """
 
     def __init__(self) -> None:
-        self.llm: BaseChatModel = get_chat_model(temperature=0.3, max_tokens=2048)
+        self._llm: BaseChatModel | None = None
+
+    @property
+    def llm(self) -> BaseChatModel:
+        if self._llm is None:
+            self._llm = get_chat_model(temperature=0.3, max_tokens=2048)
+        return self._llm
 
     def generate(
         self,
@@ -338,7 +350,13 @@ class RecommendedQuestionsGenerator:
 {schema}"""
 
     def __init__(self) -> None:
-        self.llm: BaseChatModel = get_chat_model(temperature=0.5, max_tokens=512)
+        self._llm: BaseChatModel | None = None
+
+    @property
+    def llm(self) -> BaseChatModel:
+        if self._llm is None:
+            self._llm = get_chat_model(temperature=0.5, max_tokens=512)
+        return self._llm
 
     def generate(self, question: str, answer: str, schema: str) -> list[str]:
         """生成推荐问题"""

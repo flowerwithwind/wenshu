@@ -10,7 +10,7 @@ import pandas as pd
 
 from app.config import DATASET_DIR, MAX_UPLOAD_SIZE_MB
 from app.nl2sql.database import CSV_TABLE_MAP, DB_PATH, infer_sql_type, normalize_column_name
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 

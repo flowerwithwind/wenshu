@@ -4,7 +4,7 @@ ARG PIP_INDEX_URL=https://pypi.org/simple
 ARG PIP_TRUSTED_HOST=pypi.org
 ARG APT_MIRROR=deb.debian.org
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -26,9 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip config set global.index-url ${PIP_INDEX_URL} && \
     pip config set global.trusted-host ${PIP_TRUSTED_HOST}
 
-# 升级 pip 避免旧版兼容问题
+# 基础镜像 pip 版本较新，只需简单升级 setuptools/wheel
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --upgrade setuptools wheel
 
 # 分步安装 torch（大包单独装，减少并行压力，已安装的会被 -r 跳过）
 RUN pip install --no-cache-dir torch==2.5.1

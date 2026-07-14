@@ -18,7 +18,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.models.provider import get_chat_model
 from app.nl2sql.database import execute_sql
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 

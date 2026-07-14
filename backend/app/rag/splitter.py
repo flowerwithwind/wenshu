@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import CHUNK_SIZE, CHUNK_OVERLAP
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 

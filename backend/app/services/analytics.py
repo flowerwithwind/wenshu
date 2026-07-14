@@ -1,98 +1,194 @@
-"""数据分析服务 — 聚合统计、热门查询记录"""
+"""数据分析服务 — 多数据源看板聚合统计"""
 from __future__ import annotations
 
-from app.nl2sql.database import get_connection
+from typing import Any
 
-DB_PATH: str | None = None  # 使用默认路径
+from app.datasources.base import DataSource
+from app.datasources.registry import get_datasource
+from app.logger import get_logger
 
-
-def _query(sql: str) -> tuple[list[str], list[dict]]:
-    """执行单条查询并返回结果"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(sql)
-    columns: list[str] = [desc[0] for desc in cursor.description]
-    rows: list[dict] = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return columns, rows
+logger = get_logger(__name__)
 
 
-def get_overview_stats() -> dict:
-    """获取概览统计"""
-    stats: dict = {}
+def _empty_chart() -> dict[str, list]:
+    return {"labels": [], "data": []}
 
-    # 总销售额
+
+def _safe_num(val: Any) -> float | int:
+    if val is None:
+        return 0
     try:
-        _, rows = _query(
-            "SELECT SUM([订单金额_元]) AS 总销售额 FROM [orders] WHERE [订单状态] = '已完成'"
+        f = float(val)
+        if f == int(f):
+            return int(f)
+        return round(f, 2)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _q(ds: DataSource, name: str) -> str:
+    return ds._quote_ident(name)
+
+
+def _month_expr(ds: DataSource, col: str) -> str:
+    dialect = (ds.dialect or "sqlite").lower()
+    qcol = _q(ds, col)
+    if dialect in ("mysql", "mariadb"):
+        return f"DATE_FORMAT({qcol}, '%Y-%m')"
+    if dialect in ("postgres", "postgresql"):
+        return f"TO_CHAR({qcol}::timestamp, 'YYYY-MM')"
+    return f"STRFTIME('%Y-%m', {qcol})"
+
+
+def _query(ds: DataSource, sql: str) -> list[dict[str, Any]]:
+    rows, _ = ds.execute_sql(sql)
+    return rows
+
+
+def _first_val(rows: list[dict[str, Any]], *keys: str) -> Any:
+    if not rows:
+        return None
+    row = rows[0]
+    for k in keys:
+        if k in row:
+            return row[k]
+    # 取第一列
+    if row:
+        return next(iter(row.values()))
+    return None
+
+
+def get_overview_stats(datasource_id: str | None = None) -> dict[str, Any]:
+    """
+    获取看板概览。
+    针对电商演示 Schema（orders/customers/products/refunds）聚合；
+    其他数据源若表结构不匹配则返回 0 与空图表，并附 schema 提示。
+    """
+    ds = get_datasource(datasource_id)
+    meta = ds.meta
+
+    stats: dict[str, Any] = {
+        "datasource_id": meta.id,
+        "datasource_name": meta.name,
+        "datasource_type": meta.type,
+        "total_revenue": 0,
+        "total_orders": 0,
+        "total_customers": 0,
+        "refund_rate": 0,
+        "category_revenue": _empty_chart(),
+        "monthly_trend": _empty_chart(),
+        "province_distribution": _empty_chart(),
+        "schema_ok": False,
+        "message": "",
+    }
+
+    if not ds.is_ready():
+        stats["message"] = f"数据源「{meta.name}」不可用，请先测试连接"
+        return stats
+
+    o = _q(ds, "orders")
+    c = _q(ds, "customers")
+    p = _q(ds, "products")
+    r = _q(ds, "refunds")
+    col_amt = _q(ds, "订单金额_元")
+    col_status = _q(ds, "订单状态")
+    col_order_id = _q(ds, "订单ID")
+    col_product_id = _q(ds, "商品ID")
+    col_category = _q(ds, "品类")
+    col_date = _q(ds, "日期")
+    col_province = _q(ds, "收货省份")
+
+    try:
+        # 探测电商 Schema
+        probe = _query(ds, f"SELECT COUNT(*) AS cnt FROM {o}")
+        _ = _first_val(probe, "cnt")
+        stats["schema_ok"] = True
+    except Exception as e:
+        logger.info(f"看板 Schema 不兼容 datasource={meta.id}: {e}")
+        stats["message"] = (
+            f"数据源「{meta.name}」表结构与电商演示看板不匹配"
+            "（需要 orders / customers / products / refunds 及中文列名）。"
+            "可在智能问数中对该库做自然语言查询。"
         )
-        stats["total_revenue"] = rows[0]["总销售额"] if rows else 0
-    except Exception:
-        stats["total_revenue"] = 0
+        return stats
 
-    # 总订单数
     try:
-        _, rows = _query("SELECT COUNT(*) AS 总订单数 FROM [orders]")
-        stats["total_orders"] = rows[0]["总订单数"] if rows else 0
-    except Exception:
-        stats["total_orders"] = 0
-
-    # 客户数
-    try:
-        _, rows = _query("SELECT COUNT(*) AS 客户数 FROM [customers]")
-        stats["total_customers"] = rows[0]["客户数"] if rows else 0
-    except Exception:
-        stats["total_customers"] = 0
-
-    # 退款率
-    try:
-        _, rows = _query(
-            "SELECT CAST(COUNT(DISTINCT [r].[订单ID]) AS REAL) * 100.0 / "
-            "NULLIF(COUNT(DISTINCT [o].[订单ID]), 0) AS 退款率 "
-            "FROM [orders] [o] LEFT JOIN [refunds] [r] ON [o].[订单ID] = [r].[订单ID]"
+        rows = _query(
+            ds,
+            f"SELECT SUM({col_amt}) AS total FROM {o} WHERE {col_status} = '已完成'",
         )
-        stats["refund_rate"] = round(rows[0]["退款率"], 2) if rows else 0
-    except Exception:
-        stats["refund_rate"] = 0
+        stats["total_revenue"] = _safe_num(_first_val(rows, "total", "总销售额"))
+    except Exception as e:
+        logger.debug(f"total_revenue failed: {e}")
 
-    # 各品类销售额排名
     try:
-        _, rows = _query(
-            "SELECT [p].[品类], SUM([o].[订单金额_元]) AS 销售额 "
-            "FROM [orders] [o] JOIN [products] [p] ON [o].[商品ID] = [p].[商品ID] "
-            "WHERE [o].[订单状态] = '已完成' GROUP BY [p].[品类] ORDER BY 销售额 DESC"
+        rows = _query(ds, f"SELECT COUNT(*) AS total FROM {o}")
+        stats["total_orders"] = _safe_num(_first_val(rows, "total", "总订单数"))
+    except Exception as e:
+        logger.debug(f"total_orders failed: {e}")
+
+    try:
+        rows = _query(ds, f"SELECT COUNT(*) AS total FROM {c}")
+        stats["total_customers"] = _safe_num(_first_val(rows, "total", "客户数"))
+    except Exception as e:
+        logger.debug(f"total_customers failed: {e}")
+
+    try:
+        rows = _query(
+            ds,
+            f"SELECT CAST(COUNT(DISTINCT r.{col_order_id}) AS REAL) * 100.0 / "
+            f"NULLIF(COUNT(DISTINCT o.{col_order_id}), 0) AS rate "
+            f"FROM {o} o LEFT JOIN {r} r ON o.{col_order_id} = r.{col_order_id}",
+        )
+        stats["refund_rate"] = round(float(_first_val(rows, "rate", "退款率") or 0), 2)
+    except Exception as e:
+        logger.debug(f"refund_rate failed: {e}")
+
+    try:
+        rows = _query(
+            ds,
+            f"SELECT p.{col_category} AS label, SUM(o.{col_amt}) AS value "
+            f"FROM {o} o JOIN {p} p ON o.{col_product_id} = p.{col_product_id} "
+            f"WHERE o.{col_status} = '已完成' "
+            f"GROUP BY p.{col_category} ORDER BY value DESC",
         )
         stats["category_revenue"] = {
-            "labels": [r["品类"] for r in rows],
-            "data": [r["销售额"] for r in rows],
+            "labels": [str(r.get("label") or r.get("品类") or "") for r in rows],
+            "data": [_safe_num(r.get("value", r.get("销售额"))) for r in rows],
         }
-    except Exception:
-        stats["category_revenue"] = {"labels": [], "data": []}
+    except Exception as e:
+        logger.debug(f"category_revenue failed: {e}")
 
-    # 月度销售趋势
     try:
-        _, rows = _query(
-            "SELECT STRFTIME('%Y-%m', [日期]) AS 月, SUM([订单金额_元]) AS 销售额 "
-            "FROM [orders] WHERE [订单状态] = '已完成' GROUP BY 月 ORDER BY 月"
+        month_expr = _month_expr(ds, "日期")
+        rows = _query(
+            ds,
+            f"SELECT {month_expr} AS label, SUM({col_amt}) AS value "
+            f"FROM {o} WHERE {col_status} = '已完成' "
+            f"GROUP BY {month_expr} ORDER BY label",
         )
         stats["monthly_trend"] = {
-            "labels": [r["月"] for r in rows],
-            "data": [r["销售额"] for r in rows],
+            "labels": [str(r.get("label") or r.get("月") or "") for r in rows],
+            "data": [_safe_num(r.get("value", r.get("销售额"))) for r in rows],
         }
-    except Exception:
-        stats["monthly_trend"] = {"labels": [], "data": []}
+    except Exception as e:
+        logger.debug(f"monthly_trend failed: {e}")
 
-    # 省份销售分布
     try:
-        _, rows = _query(
-            "SELECT [收货省份], SUM([订单金额_元]) AS 销售额 "
-            "FROM [orders] WHERE [订单状态] = '已完成' GROUP BY [收货省份] ORDER BY 销售额 DESC"
+        rows = _query(
+            ds,
+            f"SELECT {col_province} AS label, SUM({col_amt}) AS value "
+            f"FROM {o} WHERE {col_status} = '已完成' "
+            f"GROUP BY {col_province} ORDER BY value DESC",
         )
         stats["province_distribution"] = {
-            "labels": [r["收货省份"] for r in rows],
-            "data": [r["销售额"] for r in rows],
+            "labels": [str(r.get("label") or r.get("收货省份") or "") for r in rows],
+            "data": [_safe_num(r.get("value", r.get("销售额"))) for r in rows],
         }
-    except Exception:
-        stats["province_distribution"] = {"labels": [], "data": []}
+    except Exception as e:
+        logger.debug(f"province_distribution failed: {e}")
+
+    if not stats["message"]:
+        stats["message"] = f"当前数据源：{meta.name}"
 
     return stats

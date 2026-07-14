@@ -6,12 +6,10 @@ from __future__ import annotations
 
 import os
 import csv
-import re
 import sqlite3
-import sqlparse
 from typing import Any
 from app.config import DATASET_DIR
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -151,27 +149,10 @@ def _create_indexes(conn: sqlite3.Connection) -> None:
 
 
 def _validate_sql_safety(sql: str) -> None:
-    """校验 SQL 安全性，只允许 SELECT/EXPLAIN/WITH SELECT"""
-    # 黑名单关键词
-    blacklist: list[str] = [
-        "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE",
-        "TRUNCATE", "EXEC", "EXECUTE", "ATTACH", "DETACH",
-        "PRAGMA", "REINDEX", "VACUUM",
-    ]
-    pattern: str = r'\b(?:' + '|'.join(blacklist) + r')\b'
-    match = re.search(pattern, sql, re.IGNORECASE)
-    if match:
-        raise ValueError(f"安全拦截: 不允许执行 {match.group().upper()} 操作")
+    """校验 SQL 安全性（委托统一 safety 模块，保持旧 import 兼容）"""
+    from app.datasources.safety import validate_sql_safety
 
-    # 白名单检查：解析后的语句类型必须是 SELECT、EXPLAIN 或以 WITH 开头的 CTE SELECT
-    parsed = sqlparse.parse(sql)
-    for stmt in parsed:
-        if stmt.get_type() == "UNKNOWN":
-            continue
-        stmt_type: str = stmt.get_type()
-        cleaned: str = sqlparse.format(str(stmt), strip_comments=True).strip().upper()
-        if stmt_type not in ("SELECT",) and not cleaned.startswith("WITH"):
-            raise ValueError(f"安全拦截: 不允许执行 {stmt_type} 操作")
+    validate_sql_safety(sql)
 
 
 def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:

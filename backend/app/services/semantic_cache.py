@@ -16,7 +16,7 @@ import numpy as np
 from typing import Any
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from app.config import EMBEDDING_MODEL, CACHE_MAX_SIZE
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -6,41 +6,22 @@
       </svg>
       <span>{{ chartData.title || '数据可视化' }}</span>
       <div class="chart-type-selector">
-        <button
-          class="chart-type-btn"
-          :class="{ active: chartType === 'bar' }"
-          @click="chartType = 'bar'"
-          title="柱状图"
-        >
+        <button class="chart-type-btn" :class="{ active: chartType === 'bar' }" @click="chartType = 'bar'" title="柱状图">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="10" width="4" height="10"/><rect x="10" y="5" width="4" height="15"/><rect x="17" y="14" width="4" height="6"/>
           </svg>
         </button>
-        <button
-          class="chart-type-btn"
-          :class="{ active: chartType === 'line' }"
-          @click="chartType = 'line'"
-          title="折线图"
-        >
+        <button class="chart-type-btn" :class="{ active: chartType === 'line' }" @click="chartType = 'line'" title="折线图">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 17 9 10 13 14 21 6"/>
           </svg>
         </button>
-        <button
-          class="chart-type-btn"
-          :class="{ active: chartType === 'pie' }"
-          @click="chartType = 'pie'"
-          title="饼图"
-        >
+        <button class="chart-type-btn" :class="{ active: chartType === 'pie' }" @click="chartType = 'pie'" title="饼图">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M21 12h-9V3"/>
           </svg>
         </button>
-        <button
-          class="chart-type-btn export-btn"
-          @click="exportPNG"
-          title="导出PNG"
-        >
+        <button class="chart-type-btn export-btn" @click="exportPNG" title="导出PNG">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
@@ -68,81 +49,174 @@ const canvasRef = ref(null)
 const chartRef = ref(null)
 let chartInstance = null
 
-const CHART_COLORS = [
+/** 与数据看板一致的多彩调色板 */
+const PALETTE = [
   '#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444',
   '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
+  '#0ea5e9', '#84cc16', '#e11d48', '#a855f7', '#22c55e',
 ]
 
 const COLOR_SCHEMES = {
-  indigo: ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'],
-  ocean: ['#06b6d4', '#22d3ee', '#67e8f9', '#a5f3fc', '#cffafe'],
-  forest: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5'],
-  sunset: ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7'],
-  rose: ['#ef4444', '#f87171', '#fca5a5', '#fecaca', '#fee2e2'],
-  violet: ['#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe'],
+  rainbow: PALETTE,
+  indigo: ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+  ocean: ['#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#22d3ee', '#67e8f9', '#38bdf8', '#60a5fa', '#a78bfa'],
+  forest: ['#10b981', '#14b8a6', '#06b6d4', '#84cc16', '#22c55e', '#34d399', '#2dd4bf', '#4ade80', '#a3e635', '#fbbf24'],
+  sunset: ['#f59e0b', '#f97316', '#ef4444', '#ec4899', '#f43f5e', '#fbbf24', '#fb923c', '#f87171', '#f472b6', '#e879f9'],
+  rose: ['#ef4444', '#f43f5e', '#ec4899', '#d946ef', '#f87171', '#fb7185', '#f472b6', '#e879f9', '#c084fc', '#a78bfa'],
+  violet: ['#8b5cf6', '#a855f7', '#d946ef', '#6366f1', '#4f46e5', '#a78bfa', '#c084fc', '#e879f9', '#818cf8', '#6366f1'],
 }
 
-function getColors() {
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const n = parseInt(full, 16)
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+function getPalette() {
   const scheme = props.chartData?.colorScheme
-  if (scheme && COLOR_SCHEMES[scheme]) {
-    return COLOR_SCHEMES[scheme]
-  }
-  return CHART_COLORS
+  if (scheme && COLOR_SCHEMES[scheme]) return COLOR_SCHEMES[scheme]
+  return PALETTE
+}
+
+function colorsForCount(n) {
+  const base = getPalette()
+  if (n <= 0) return base
+  const out = []
+  for (let i = 0; i < n; i++) out.push(base[i % base.length])
+  return out
+}
+
+function buildDatasets(data) {
+  const labels = data.labels || []
+  const type = chartType.value
+  const palette = getPalette()
+  const multiCategory = labels.length > 1
+
+  return (data.datasets || []).map((ds, i) => {
+    const values = ds.data || []
+    // 单序列 + 多类别：每根柱/每块饼不同色（对齐看板）
+    const perItemColors = colorsForCount(Math.max(labels.length, values.length))
+
+    if (type === 'pie') {
+      return {
+        label: ds.label,
+        data: values,
+        backgroundColor: perItemColors,
+        borderColor: '#fff',
+        borderWidth: 2,
+        hoverOffset: 6,
+      }
+    }
+
+    if (type === 'line') {
+      const c = palette[i % palette.length]
+      return {
+        label: ds.label,
+        data: values,
+        borderColor: c,
+        backgroundColor: hexToRgba(c, 0.12),
+        borderWidth: 2.5,
+        tension: 0.35,
+        fill: true,
+        pointBackgroundColor: c,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }
+    }
+
+    // bar
+    if (data.datasets.length === 1 && multiCategory) {
+      // 多彩柱：每类一色
+      return {
+        label: ds.label,
+        data: values,
+        backgroundColor: perItemColors.map((c) => hexToRgba(c, 0.85)),
+        borderColor: perItemColors,
+        borderWidth: 1.5,
+        borderRadius: 6,
+        borderSkipped: false,
+      }
+    }
+
+    // 多序列对比：每序列一色
+    const c = palette[i % palette.length]
+    return {
+      label: ds.label,
+      data: values,
+      backgroundColor: hexToRgba(c, 0.82),
+      borderColor: c,
+      borderWidth: 1.5,
+      borderRadius: 6,
+      borderSkipped: false,
+    }
+  })
 }
 
 function renderChart() {
   if (!canvasRef.value || !props.chartData) return
-
-  if (chartInstance) {
-    chartInstance.destroy()
-  }
+  if (chartInstance) chartInstance.destroy()
 
   const ctx = canvasRef.value.getContext('2d')
   const data = props.chartData
-  const colors = getColors()
-
-  const datasets = (data.datasets || []).map((ds, i) => ({
-    label: ds.label,
-    data: ds.data,
-    backgroundColor: chartType.value === 'pie'
-      ? colors.slice(0, (data.labels || []).length)
-      : colors[i % colors.length] + '80',
-    borderColor: colors[i % colors.length],
-    borderWidth: 2,
-    tension: 0.3,
-  }))
+  const type = chartType.value === 'pie' ? 'pie' : chartType.value === 'line' ? 'line' : 'bar'
 
   chartInstance = new Chart(ctx, {
-    type: chartType.value === 'pie' ? 'pie' : chartType.value === 'line' ? 'line' : 'bar',
-    data: { labels: data.labels, datasets },
+    type,
+    data: {
+      labels: data.labels || [],
+      datasets: buildDatasets(data),
+    },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      aspectRatio: 2,
+      aspectRatio: type === 'pie' ? 1.6 : 2,
       plugins: {
         title: {
           display: !!data.title,
           text: data.title || '',
           font: { size: 14, weight: '600' },
+          color: '#334155',
           padding: { bottom: 16 },
         },
         legend: {
           position: 'bottom',
           labels: {
             font: { size: 12 },
-            padding: 16,
+            padding: 14,
             usePointStyle: true,
+            // 单序列多彩柱时隐藏 legend（类目已在 x 轴）
+            filter: (item, chart) => {
+              if (type === 'bar' && (data.datasets || []).length === 1 && (data.labels || []).length > 1) {
+                return false
+              }
+              return true
+            },
           },
         },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.9)',
+          padding: 10,
+          cornerRadius: 8,
+          titleFont: { size: 12 },
+          bodyFont: { size: 12 },
+        },
       },
-      scales: chartType.value !== 'pie' ? {
+      scales: type !== 'pie' ? {
         x: {
-          ticks: { font: { size: 11 } },
+          ticks: { font: { size: 11 }, color: '#64748b' },
           grid: { display: false },
+          border: { display: false },
         },
         y: {
-          ticks: { font: { size: 11 } },
+          ticks: { font: { size: 11 }, color: '#64748b' },
           grid: { color: '#f1f5f9' },
+          border: { display: false },
         },
       } : undefined,
     },
@@ -167,28 +241,23 @@ watch(() => props.chartData, () => {
 }, { deep: true })
 
 watch(chartType, () => nextTick(renderChart))
-
 onMounted(() => nextTick(renderChart))
-
-onUnmounted(() => {
-  if (chartInstance) {
-    chartInstance.destroy()
-  }
-})
+onUnmounted(() => { if (chartInstance) chartInstance.destroy() })
 </script>
 
 <style scoped>
 .data-chart {
   margin-top: 16px;
-  background: var(--bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
   overflow: hidden;
-  animation: fadeIn 0.5s ease-out 0.2s both;
+  animation: fadeIn 0.45s ease-out 0.1s both;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -196,11 +265,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: #475569;
+  background: #fff;
 }
 
 .chart-type-selector {
@@ -210,35 +280,37 @@ onUnmounted(() => {
 }
 
 .chart-type-btn {
-  padding: 4px 6px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  padding: 5px 7px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   cursor: pointer;
-  color: var(--text-secondary);
-  transition: all var(--transition);
+  color: #64748b;
+  transition: all 0.15s;
   display: flex;
   align-items: center;
 }
 
 .chart-type-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: #a5b4fc;
+  color: #4f46e5;
+  background: #eef2ff;
 }
 
 .chart-type-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border-color: transparent;
   color: #fff;
 }
 
 .chart-type-btn.export-btn:hover {
-  border-color: var(--success);
-  color: var(--success);
+  border-color: #6ee7b7;
+  color: #059669;
+  background: #ecfdf5;
 }
 
 .chart-container {
-  padding: 14px;
-  max-height: 300px;
+  padding: 14px 16px 18px;
+  max-height: 320px;
 }
 </style>

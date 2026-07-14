@@ -19,6 +19,10 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=5000)
     conversation_id: str | None = None
     stream: bool = False
+    datasource_id: str | None = Field(
+        default=None,
+        description="数据源 ID；为空则使用默认数据源",
+    )
 
 
 class SQLResult(BaseModel):

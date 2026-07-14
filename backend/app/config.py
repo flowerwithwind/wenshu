@@ -1,9 +1,23 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# backend/ 根目录（与 cwd 无关，避免从 app/ 启动时找不到 data/）
+BACKEND_ROOT: Path = Path(__file__).resolve().parent.parent
+_ENV_FILE = BACKEND_ROOT / ".env"
+load_dotenv(_ENV_FILE if _ENV_FILE.exists() else None)
+
+
+def _path_from_env(key: str, default_relative: str) -> str:
+    """读取路径配置；相对路径一律锚定到 backend 根目录。"""
+    raw: str = os.getenv(key, default_relative)
+    p = Path(raw)
+    if not p.is_absolute():
+        p = BACKEND_ROOT / p
+    return str(p.resolve())
+
 
 # LLM 供应商选择: deepseek / openai / anthropic
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "deepseek").lower()
@@ -25,9 +39,9 @@ ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 # Embedding 模型配置
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-zh-v1.5")
 
-# 向量数据库配置
-VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./data/vector_db")
-CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./data/chroma_db")
+# 向量数据库配置（绝对路径）
+VECTOR_DB_PATH: str = _path_from_env("VECTOR_DB_PATH", "data/vector_db")
+CHROMA_PERSIST_DIR: str = _path_from_env("CHROMA_PERSIST_DIR", "data/chroma_db")
 
 # 文档处理配置
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "500"))
@@ -43,8 +57,8 @@ HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = int(os.getenv("PORT", "8000"))
 CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
 
-# 数据集配置
-DATASET_DIR: str = os.getenv("DATASET_DIR", "./data/datasets")
+# 数据集配置（绝对路径）
+DATASET_DIR: str = _path_from_env("DATASET_DIR", "data/datasets")
 
 # 缓存配置
 CACHE_MAX_SIZE: int = int(os.getenv("CACHE_MAX_SIZE", "500"))

@@ -15,7 +15,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.models.provider import get_chat_model
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -58,12 +58,18 @@ CORRECTION_SYSTEM_PROMPT: str = """你是 SQLite SQL 调试专家。当前 SQL �
 
 
 class SQLCorrector:
-    """SQL 自纠错器"""
+    """SQL 自纠错器（LLM 延迟初始化，避免遮蔽/无网络时导入失败）"""
 
     def __init__(self, max_retries: int = DEFAULT_MAX_RETRIES) -> None:
         self.max_retries: int = max_retries
-        self.llm: BaseChatModel = get_chat_model(temperature=0.1, max_tokens=1024)
+        self._llm: BaseChatModel | None = None
         self._attempt_count: int = 0
+
+    @property
+    def llm(self) -> BaseChatModel:
+        if self._llm is None:
+            self._llm = get_chat_model(temperature=0.1, max_tokens=1024)
+        return self._llm
 
     @property
     def attempt_count(self) -> int:

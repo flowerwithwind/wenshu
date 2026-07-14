@@ -1,6 +1,6 @@
 <template>
   <div class="chat-input-wrapper">
-    <div class="input-container">
+    <div class="input-container" :class="{ disabled, streaming: isStreaming }">
       <textarea
         ref="textareaRef"
         v-model="inputText"
@@ -19,16 +19,18 @@
         <button
           v-if="isStreaming"
           class="btn-stop"
+          type="button"
           @click="$emit('stop')"
           title="停止生成"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="4" y="4" width="16" height="16" rx="2"/>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="5" y="5" width="14" height="14" rx="2"/>
           </svg>
         </button>
         <button
           v-else
           class="btn-send"
+          type="button"
           :class="{ active: inputText.trim() }"
           :disabled="!inputText.trim() || disabled"
           @click="handleSend"
@@ -41,7 +43,7 @@
       </div>
     </div>
     <div class="input-hint">
-      按 Enter 发送，Shift + Enter 换行
+      Enter 发送 · Shift+Enter 换行
     </div>
   </div>
 </template>
@@ -60,7 +62,11 @@ const inputText = ref('')
 const textareaRef = ref(null)
 
 const placeholder = computed(() =>
-  props.disabled ? '正在生成回答...' : '问点电商数据：比如销售额排名、会员分析、退款率...'
+  props.isStreaming
+    ? '模型正在思考，请稍候…'
+    : props.disabled
+      ? '请稍候…'
+      : '问点电商数据：销售额排名、会员分析、退款率…'
 )
 
 function autoResize() {
@@ -76,7 +82,7 @@ function autoResize() {
 function handleSend(e) {
   e?.preventDefault()
   const text = inputText.value.trim()
-  if (!text || props.disabled) return
+  if (!text || props.disabled || props.isStreaming) return
 
   emit('send', text)
   inputText.value = ''
@@ -91,23 +97,35 @@ function handleNewLine() {
 
 <style scoped>
 .chat-input-wrapper {
-  max-width: 800px;
+  max-width: 820px;
   margin: 0 auto;
 }
 
 .input-container {
   display: flex;
-  align-items: flex-end;
-  background: var(--bg);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  transition: border-color var(--transition);
+  align-items: center; /* 单行时垂直居中，避免上下边距不均 */
+  gap: 10px;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 12px 10px 16px; /* 上下一致 */
+  min-height: 52px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .input-container:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1), 0 4px 16px rgba(79, 70, 229, 0.06);
+}
+
+.input-container.streaming {
+  border-color: #c7d2fe;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.input-container.disabled {
+  opacity: 0.85;
 }
 
 .input-field {
@@ -116,19 +134,25 @@ function handleNewLine() {
   outline: none;
   background: transparent;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 22px; /* 固定行高，与 padding 对称 */
   color: var(--text);
   resize: none;
   max-height: 150px;
+  min-height: 22px;
+  padding: 0; /* 容器已承担上下内边距，textarea 自身不再额外加 */
+  margin: 0;
   font-family: inherit;
+  vertical-align: middle;
 }
 
 .input-field::placeholder {
   color: #94a3b8;
+  line-height: 22px;
 }
 
 .input-field:disabled {
-  opacity: 0.6;
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .input-actions {
@@ -136,59 +160,64 @@ function handleNewLine() {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  padding-left: 8px;
+  align-self: flex-end; /* 多行时按钮贴底 */
+  padding-bottom: 0;
 }
 
 .char-count {
   font-size: 11px;
   color: var(--text-secondary);
+  line-height: 1;
 }
 
-.btn-send {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 8px;
-  background: var(--border);
-  color: #94a3b8;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition);
-}
-
-.btn-send.active {
-  background: var(--primary);
-  color: #fff;
-}
-
-.btn-send.active:hover {
-  background: var(--primary-hover);
-}
-
+.btn-send,
 .btn-stop {
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 8px;
-  background: var(--danger);
-  color: #fff;
+  border-radius: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition);
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-send {
+  background: #e2e8f0;
+  color: #94a3b8;
+}
+
+.btn-send.active {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+.btn-send.active:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn-send:disabled {
+  cursor: not-allowed;
+}
+
+.btn-stop {
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .btn-stop:hover {
-  background: #dc2626;
+  background: #fecaca;
 }
 
 .input-hint {
   text-align: center;
   font-size: 11px;
   color: #94a3b8;
-  margin-top: 6px;
+  margin-top: 8px;
+  letter-spacing: 0.02em;
 }
 </style>

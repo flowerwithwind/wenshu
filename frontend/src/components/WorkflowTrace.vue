@@ -44,15 +44,42 @@
               <div class="dc-title">用户提问</div>
               <div class="dc-subtitle">接收到的问题原文</div>
             </div>
-            <span class="dc-badge badge-intent">NL2SQL 入口</span>
+            <span class="dc-badge badge-intent">{{ isAgentMode ? 'ReAct Agent' : 'NL2SQL 入口' }}</span>
           </div>
           <div class="detail-card-body">
             <div class="question-display">{{ message.question || '（未记录）' }}</div>
           </div>
         </div>
 
-        <!-- Step 1: Schema 匹配 -->
-        <div v-if="activeStep === 1" class="detail-card">
+        <!-- Agent: 工具调用 -->
+        <div v-if="isAgentMode && activeStep === 1" class="detail-card">
+          <div class="detail-card-header">
+            <span class="dc-icon schema-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </span>
+            <div>
+              <div class="dc-title">工具调用轨迹</div>
+              <div class="dc-subtitle">ReAct 多步推理中调用的工具</div>
+            </div>
+            <span class="dc-badge badge-schema">{{ toolCalls.length }} 次调用</span>
+          </div>
+          <div class="detail-card-body">
+            <div v-if="!toolCalls.length" class="kv-value text-muted">暂无工具调用记录</div>
+            <div v-for="(tc, ti) in toolCalls" :key="ti" class="tool-call-item">
+              <div class="tool-call-header">
+                <span class="tool-name">{{ tc.tool || tc.name || 'tool' }}</span>
+                <span class="tool-status" :class="tc.status || 'done'">{{ tc.status === 'running' ? '执行中' : '完成' }}</span>
+              </div>
+              <pre v-if="tc.args && Object.keys(tc.args).length" class="tool-args">{{ formatJson(tc.args) }}</pre>
+              <pre v-if="tc.result_preview" class="tool-result">{{ tc.result_preview }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline: Schema 匹配 -->
+        <div v-if="!isAgentMode && activeStep === 1" class="detail-card">
           <div class="detail-card-header">
             <span class="dc-icon schema-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -94,8 +121,8 @@
           </div>
         </div>
 
-        <!-- Step 2: NL2SQL 翻译 -->
-        <div v-if="activeStep === 2" class="detail-card">
+        <!-- Pipeline: NL2SQL 翻译 -->
+        <div v-if="!isAgentMode && activeStep === 2" class="detail-card">
           <div class="detail-card-header">
             <span class="dc-icon llm-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -124,8 +151,8 @@
           </div>
         </div>
 
-        <!-- Step 3: SQL 执行 -->
-        <div v-if="activeStep === 3" class="detail-card">
+        <!-- SQL 执行: pipeline step 3 / agent step 2 -->
+        <div v-if="(!isAgentMode && activeStep === 3) || (isAgentMode && activeStep === 2)" class="detail-card">
           <div class="detail-card-header">
             <span class="dc-icon db-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -139,6 +166,13 @@
             <span class="dc-badge badge-db">SQLite</span>
           </div>
           <div class="detail-card-body">
+            <div class="sql-block" v-if="message.sql" style="margin-bottom: 12px">
+              <div class="sql-block-header">
+                <span class="sql-label">执行的 SQL</span>
+                <button class="btn-copy" @click="copySQL" title="复制 SQL">复制</button>
+              </div>
+              <pre class="sql-code"><code>{{ message.sql }}</code></pre>
+            </div>
             <div class="exec-stats">
               <div class="exec-stat">
                 <span class="stat-num">{{ sqlResult?.row_count || 0 }}</span>
@@ -175,8 +209,8 @@
           </div>
         </div>
 
-        <!-- Step 4: 结果呈现 -->
-        <div v-if="activeStep === 4" class="detail-card">
+        <!-- 结果呈现: pipeline step 4 / agent step 3 -->
+        <div v-if="(!isAgentMode && activeStep === 4) || (isAgentMode && activeStep === 3)" class="detail-card">
           <div class="detail-card-header">
             <span class="dc-icon answer-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -194,17 +228,9 @@
               <span class="kv-key">数据可视化</span>
               <span class="kv-value" :class="{ 'text-success': message.chartData, 'text-muted': !message.chartData }">
                 <template v-if="message.chartData">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
                   已生成 {{ message.chartData.type === 'bar' ? '柱状图' : message.chartData.type === 'line' ? '折线图' : message.chartData.type === 'pie' ? '饼图' : '图表' }}
                 </template>
-                <template v-else>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                  未生成图表
-                </template>
+                <template v-else>未生成图表</template>
               </span>
             </div>
             <div class="kv-row">
@@ -229,15 +255,31 @@ const expanded = ref(false)
 const activeStep = ref(0)
 
 const sqlResult = computed(() => props.message.sqlResult)
-const hasWorkflow = computed(() => !!props.message.sql)
+const toolCalls = computed(() => props.message.toolCalls || [])
+const isAgentMode = computed(() =>
+  props.message.mode === 'agent' || toolCalls.value.length > 0
+)
+const hasWorkflow = computed(() =>
+  !!props.message.sql || toolCalls.value.length > 0
+)
 
-const steps = [
-  { label: '提问', status: 'done' },
-  { label: 'Schema匹配', status: 'done' },
-  { label: 'NL2SQL翻译', status: 'done' },
-  { label: 'SQL执行', status: 'done' },
-  { label: '结果呈现', status: 'done' },
-]
+const steps = computed(() => {
+  if (isAgentMode.value) {
+    return [
+      { label: '提问', status: 'done' },
+      { label: '工具调用', status: toolCalls.value.length ? 'done' : 'pending' },
+      { label: 'SQL执行', status: props.message.sql ? 'done' : 'pending' },
+      { label: '结果呈现', status: 'done' },
+    ]
+  }
+  return [
+    { label: '提问', status: 'done' },
+    { label: 'Schema匹配', status: 'done' },
+    { label: 'NL2SQL翻译', status: 'done' },
+    { label: 'SQL执行', status: 'done' },
+    { label: '结果呈现', status: 'done' },
+  ]
+})
 
 const matchedTable = computed(() => {
   const sql = props.message.sql || ''
@@ -260,6 +302,14 @@ function formatValue(val) {
     return Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)
   }
   return String(val)
+}
+
+function formatJson(obj) {
+  try {
+    return JSON.stringify(obj, null, 2)
+  } catch {
+    return String(obj)
+  }
 }
 
 function copySQL() {
@@ -447,6 +497,57 @@ function copySQL() {
 
 .detail-card-body {
   padding: 16px;
+}
+
+/* Agent 工具调用 */
+.tool-call-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.tool-call-item:last-child { margin-bottom: 0; }
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.tool-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.tool-status {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #059669;
+}
+.tool-status.running {
+  background: #fef3c7;
+  color: #d97706;
+}
+.tool-args, .tool-result {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.tool-result {
+  background: #0f172a;
+  color: #94a3b8;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 /* 提问文本 */

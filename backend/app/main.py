@@ -1,10 +1,28 @@
 """
 智能问数系统 - FastAPI 主入口
 架构：NL2SQL 为主，RAG 为辅助
+
+推荐启动（在 backend 目录）:
+    conda activate wenshu
+    python -m app.main
+
+也支持在 backend/app 下: python main.py
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# 将 backend/ 加入 sys.path，保证 `from app.xxx` 可解析
+# （无论 cwd 是 backend 还是 backend/app）
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
 import uuid
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -14,15 +32,66 @@ from app.rag.pipeline import get_pipeline
 from app.nl2sql.database import init_database, is_database_ready
 from app.nl2sql.pipeline import get_nl2sql_pipeline
 from app.middleware.rate_limit import check_rate_limit, build_rate_limit_response
-from app.logging import get_logger, RequestIDFilter
+from app.logger import get_logger, RequestIDFilter
 from app.tracing import setup_tracing
 
 logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """应用生命周期：启动初始化 + 关闭清理"""
+    logger.info("=" * 50)
+    logger.info("智能问数系统 v2.0.0 启动中...架构: NL2SQL 为主，RAG 为辅助")
+
+    logger.info("[1] 初始化 SQLite 数据库...")
+    try:
+        init_database()
+        logger.info("数据库: 就绪")
+    except Exception as e:
+        logger.error(f"数据库初始化失败: {e}")
+
+    logger.info("[2] 初始化 RAG 向量存储（辅助）...")
+    pipeline = None
+    try:
+        pipeline = get_pipeline()
+        stats = pipeline.get_stats()
+        ready = bool(stats.get("vector_store_ready"))
+        logger.info(f"向量存储: {'就绪' if ready else '未初始化/已降级'}")
+        logger.info(f"文档块数: {stats.get('total_chunks', 0)}")
+        if not ready:
+            logger.warning(
+                "RAG 索引不可用：NL2SQL 主路径仍可用。"
+                "重建: POST /api/rebuild-index 或删除 data/chroma_db 后重建"
+            )
+    except Exception as e:
+        logger.warning(f"RAG 启动警告（已降级）: {e}")
+
+    logger.info("[3] 初始化 NL2SQL Pipeline...")
+    try:
+        if pipeline is None:
+            pipeline = get_pipeline()
+        retriever = pipeline.retriever if pipeline is not None else None
+        nl2sql = get_nl2sql_pipeline(rag_retriever=retriever)
+        nl2sql_stats = nl2sql.get_stats()
+        logger.info(f"NL2SQL 翻译器: {'就绪' if nl2sql_stats['nl2sql_ready'] else '未配置'}")
+        logger.info(f"SQLite 数据库: {'就绪' if nl2sql_stats['database_ready'] else '未初始化'}")
+        logger.info(
+            f"RAG 辅助: {'就绪' if nl2sql_stats['rag_ready'] else '未就绪（索引缺失/损坏）'}"
+        )
+    except Exception as e:
+        logger.warning(f"NL2SQL 启动警告: {e}")
+
+    logger.info("启动完成")
+    yield
+    logger.info("服务关闭")
+
 
 app: FastAPI = FastAPI(
     title="智能问数系统 API",
     description="基于 NL2SQL + RAG 架构的智能数据问答系统",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 # CORS 中间件
@@ -45,7 +114,11 @@ async def request_context_middleware(request: Request, call_next) -> Response:
     logger.info(f"{request.method} {request.url.path} - 请求开始")
     try:
         await check_rate_limit(request)
-    except Exception:
+    except Exception as e:
+        # 仅限流异常返回 429；其他异常继续抛出，避免被误判为限流
+        from app.middleware.rate_limit import RateLimitExceededError
+        if not isinstance(e, RateLimitExceededError):
+            raise
         logger.warning(f"限流触发: {request.client.host if request.client else 'unknown'}")
         return JSONResponse(
             status_code=429,
@@ -69,45 +142,10 @@ from app.routes.feedback import feedback_router
 app.include_router(feedback_router)
 from app.routes.evaluation import evaluation_router
 app.include_router(evaluation_router)
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    """服务启动时初始化"""
-    logger.info("=" * 50)
-    logger.info("智能问数系统 v2.0.0 启动中...架构: NL2SQL 为主，RAG 为辅助")
-
-    # 1. 初始化 SQLite 数据库
-    logger.info("[1] 初始化 SQLite 数据库...")
-    try:
-        init_database()
-        logger.info("数据库: 就绪")
-    except Exception as e:
-        logger.error(f"数据库初始化失败: {e}")
-
-    # 2. 初始化 RAG 向量存储（辅助）
-    logger.info("[2] 初始化 RAG 向量存储（辅助）...")
-    try:
-        pipeline = get_pipeline()
-        stats = pipeline.get_stats()
-        logger.info(f"向量存储: {'就绪' if stats['vector_store_ready'] else '未初始化'}")
-        logger.info(f"文档块数: {stats['total_chunks']}")
-    except Exception as e:
-        logger.warning(f"RAG 启动警告: {e}")
-
-    # 3. 初始化 NL2SQL Pipeline
-    logger.info("[3] 初始化 NL2SQL Pipeline...")
-    try:
-        pipeline = get_pipeline()
-        nl2sql = get_nl2sql_pipeline(rag_retriever=pipeline.retriever)
-        nl2sql_stats = nl2sql.get_stats()
-        logger.info(f"NL2SQL 翻译器: {'就绪' if nl2sql_stats['nl2sql_ready'] else '未配置'}")
-        logger.info(f"SQLite 数据库: {'就绪' if nl2sql_stats['database_ready'] else '未初始化'}")
-        logger.info(f"RAG 辅助: {'就绪' if nl2sql_stats['rag_ready'] else '未配置'}")
-    except Exception as e:
-        logger.warning(f"NL2SQL 启动警告: {e}")
-
-    logger.info("启动完成")
+from app.routes.models import models_router
+app.include_router(models_router)
+from app.routes.datasource import datasource_router
+app.include_router(datasource_router)
 
 
 @app.get("/")

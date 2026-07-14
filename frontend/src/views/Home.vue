@@ -1,14 +1,8 @@
 <template>
   <div class="home">
-    <!-- 侧边栏 -->
+    <!-- 会话侧栏 -->
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-header">
-        <div class="logo">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          <span>SmartQA</span>
-        </div>
         <button class="btn-new-chat" @click="handleNewChat">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -46,15 +40,6 @@
       <div class="sidebar-upload">
         <FileUpload />
       </div>
-
-      <div class="sidebar-km">
-        <button class="btn-knowledge" @click="showKnowledge = true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          知识库管理
-        </button>
-      </div>
     </aside>
 
     <!-- 主内容区 -->
@@ -66,16 +51,40 @@
             <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
-        <h1 class="title">智能问数系统</h1>
-        <router-link to="/dashboard" class="dashboard-link">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-          </svg>
-          数据看板
-        </router-link>
+        <h1 class="title">智能问数</h1>
+        <div class="topbar-center">
+          <div class="mode-switch" title="切换查询引擎">
+            <button
+              class="mode-btn"
+              :class="{ active: store.chatMode === 'pipeline' }"
+              :disabled="store.isStreaming || store.isLoading"
+              @click="store.setChatMode('pipeline')"
+            >Pipeline</button>
+            <button
+              class="mode-btn"
+              :class="{ active: store.chatMode === 'agent' }"
+              :disabled="store.isStreaming || store.isLoading"
+              @click="store.setChatMode('agent')"
+            >Agent</button>
+          </div>
+          <select
+            class="ds-select"
+            :disabled="store.isStreaming || store.isLoading"
+            :value="store.datasourceId || ''"
+            @change="onDatasourceChange"
+            title="选择数据源"
+          >
+            <option v-for="ds in store.datasources" :key="ds.id" :value="ds.id">
+              {{ ds.name }}{{ ds.is_default ? '（默认）' : '' }}
+            </option>
+          </select>
+          <ModelSelector
+            :disabled="store.isStreaming || store.isLoading"
+            @changed="onModelChanged"
+          />
+        </div>
         <div class="topbar-actions">
-          <span class="response-badge" v-if="lastMsg?.responseTimeMs">
+          <span class="response-badge" v-if="lastMsg?.responseTimeMs && !store.isStreaming">
             {{ lastMsg.responseTimeMs }}ms
           </span>
         </div>
@@ -91,8 +100,8 @@
               <line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/>
             </svg>
           </div>
-          <h2>智能数据问答助手</h2>
-          <p>基于 RAG 架构，支持对中国宏观经济、人口、企业营收、区域GDP等公开数据进行智能问答</p>
+          <h2>智能电商数据问答助手</h2>
+          <p>基于 NL2SQL + RAG + ReAct Agent，支持对订单、客户、商品、退款与销售目标做自然语言查询与可视化分析</p>
           <div class="example-questions">
             <span class="example-label">试试这些问题：</span>
             <button
@@ -106,12 +115,22 @@
 
         <!-- 消息列表 -->
         <div v-else class="messages">
-          <ChatMessage
-            v-for="msg in store.messages"
-            :key="msg.id"
-            :message="msg"
+          <template v-for="msg in store.messages" :key="msg.id">
+            <!-- 用户消息 / 已有内容的助手消息 -->
+            <ChatMessage
+              v-if="!(msg.role === 'assistant' && msg.isStreaming && !msg.content)"
+              :message="msg"
+            />
+          </template>
+
+          <!-- 等待模型输出首 token：思考中 -->
+          <ThinkingIndicator
+            v-if="isThinking"
+            :title="thinkingTitle"
+            :subtitle="thinkingSubtitle"
           />
-          <!-- 加载状态 -->
+
+          <!-- 非流式加载 -->
           <div v-if="store.isLoading && !store.isStreaming" class="loading-indicator">
             <div class="typing-dots">
               <span></span><span></span><span></span>
@@ -145,28 +164,71 @@
 
     <!-- 移动端遮罩 -->
     <div v-if="sidebarOpen" class="mobile-overlay" @click="sidebarOpen = false"></div>
-
-    <!-- 知识库管理面板 -->
-    <KnowledgeManager v-if="showKnowledge" @close="showKnowledge = false" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { healthCheck } from '../api'
 import ChatMessage from '../components/ChatMessage.vue'
 import ChatInput from '../components/ChatInput.vue'
 import FileUpload from '../components/FileUpload.vue'
-import KnowledgeManager from '../components/KnowledgeManager.vue'
+import ThinkingIndicator from '../components/ThinkingIndicator.vue'
+import ModelSelector from '../components/ModelSelector.vue'
+import { storeToRefs } from 'pinia'
 
 const store = useChatStore()
-const sidebarOpen = ref(window.innerWidth > 768)
+const { isStreaming, messages, chatMode } = storeToRefs(store)
+const sidebarOpen = ref(window.innerWidth > 900)
 const systemOk = ref(false)
 const chatAreaRef = ref(null)
-const showKnowledge = ref(false)
+const modelLabel = ref('DeepSeek')
 
 const lastMsg = computed(() => store.lastMessage)
+
+/** 已发出请求、尚未收到任何正文 chunk */
+const isThinking = computed(() => {
+  const m = lastMsg.value
+  return !!(
+    store.isStreaming &&
+    m &&
+    m.role === 'assistant' &&
+    m.isStreaming &&
+    !(m.content && String(m.content).trim())
+  )
+})
+
+const thinkingTitle = computed(() =>
+  chatMode.value === 'agent' ? 'Agent 正在思考' : '模型正在思考'
+)
+
+const thinkingSubtitle = computed(() => {
+  const name = modelLabel.value || 'DeepSeek'
+  return chatMode.value === 'agent'
+    ? `${name} · 规划工具调用与分析步骤…`
+    : `${name} · 理解问题、生成 SQL 并撰写回答…`
+})
+
+function onModelChanged(data) {
+  modelLabel.value = data?.label || data?.model || 'DeepSeek'
+}
+
+function onDatasourceChange(e) {
+  store.setDatasourceId(e.target.value)
+}
+
+// 流式输出时跟随滚动
+watch(
+  () => [isStreaming.value, lastMsg.value?.content, isThinking.value],
+  () => {
+    if (isStreaming.value || isThinking.value) scrollToBottom()
+  },
+)
+watch(
+  () => messages.value.length,
+  () => scrollToBottom(),
+)
 
 const exampleQuestions = [
   '2024年各月销售额趋势是怎样的？',
@@ -213,6 +275,7 @@ function handleResize() {
 onMounted(() => {
   checkHealth()
   store.loadHistory()
+  store.loadDatasources()
   window.addEventListener('resize', handleResize)
 })
 </script>
@@ -220,20 +283,41 @@ onMounted(() => {
 <style scoped>
 .home {
   display: flex;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
   overflow: hidden;
+}
+
+.ds-select {
+  max-width: 200px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  background: #fff;
+  outline: none;
+}
+
+.ds-select:focus {
+  border-color: #a5b4fc;
 }
 
 /* ===== 侧边栏 ===== */
 .sidebar {
   width: 280px;
   min-width: 280px;
+  height: 100%;
   background: var(--bg-sidebar);
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
   transition: transform var(--transition);
   z-index: 100;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -249,6 +333,7 @@ onMounted(() => {
   font-weight: 700;
   color: #fff;
   margin-bottom: 16px;
+  letter-spacing: -0.02em;
 }
 
 .btn-new-chat {
@@ -257,18 +342,21 @@ onMounted(() => {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 10px 16px;
-  background: var(--primary);
+  padding: 11px 16px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: #fff;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 12px;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: all var(--transition);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
 }
 
 .btn-new-chat:hover {
-  background: var(--primary-hover);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 
 .history-list {
@@ -398,6 +486,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
 }
 
@@ -406,9 +497,18 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  z-index: 5;
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-menu {
@@ -426,10 +526,44 @@ onMounted(() => {
   color: var(--text);
 }
 
+.mode-switch {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+}
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mode-btn.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   flex: 1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #0f172a, #334155);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .dashboard-link {
@@ -466,12 +600,22 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* ===== 对话区域 ===== */
+/* ===== 对话区域（仅此区域滚动，输入区始终贴底） ===== */
 .chat-area {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px 20px 12px;
   scroll-behavior: smooth;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(79, 70, 229, 0.07), transparent),
+    var(--bg);
+}
+
+.messages {
+  max-width: 820px;
+  margin: 0 auto;
 }
 
 /* ===== 欢迎页 ===== */
@@ -486,21 +630,23 @@ onMounted(() => {
 }
 
 .welcome-icon {
-  width: 120px;
-  height: 120px;
-  background: var(--primary-light);
-  border-radius: 50%;
+  width: 112px;
+  height: 112px;
+  background: linear-gradient(145deg, #eef2ff, #e0e7ff);
+  border-radius: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 24px;
+  box-shadow: 0 12px 40px rgba(79, 70, 229, 0.15);
 }
 
 .welcome h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 10px;
   color: var(--text);
+  letter-spacing: -0.03em;
 }
 
 .welcome p {
@@ -508,15 +654,15 @@ onMounted(() => {
   color: var(--text-secondary);
   max-width: 480px;
   margin-bottom: 32px;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 .example-questions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
-  max-width: 600px;
+  max-width: 640px;
 }
 
 .example-label {
@@ -524,21 +670,27 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-secondary);
   margin-bottom: 4px;
+  font-weight: 500;
 }
 
 .example-btn {
-  padding: 8px 16px;
+  padding: 10px 16px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 14px;
   font-size: 13px;
   color: var(--text);
   cursor: pointer;
   transition: all var(--transition);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .example-btn:hover {
-  border-color: var(--primary);
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  color: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
   color: var(--primary);
   background: var(--primary-light);
 }
@@ -610,12 +762,15 @@ onMounted(() => {
   background: var(--primary-light);
 }
 
-/* ===== 输入区 ===== */
+/* ===== 输入区：固定在主内容区底部，不随消息滚动 ===== */
 .input-area {
-  padding: 16px 20px 20px;
-  background: var(--bg-card);
+  flex: 0 0 auto;
+  padding: 14px 20px 18px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), #fff);
   border-top: 1px solid var(--border);
-  flex-shrink: 0;
+  z-index: 10;
+  /* 底部安全区（移动端刘海屏） */
+  padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
 }
 
 /* ===== 移动端遮罩 ===== */

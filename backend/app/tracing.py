@@ -13,35 +13,47 @@ from fastapi import FastAPI
 
 from app.config import OTEL_SERVICE_NAME, OTEL_EXPORTER_OTLP_ENDPOINT
 
-# 全局 TracerProvider
 _tracer: trace.Tracer | None = None
+_setup_done: bool = False
 
 
 def setup_tracing(app: FastAPI) -> None:
-    """初始化 OpenTelemetry，为 FastAPI 应用接入全链路追踪"""
-    resource = Resource(attributes={
-        SERVICE_NAME: OTEL_SERVICE_NAME,
-    })
+    """初始化 OpenTelemetry；幂等，避免 reload 重复 set_tracer_provider。"""
+    global _tracer, _setup_done
 
-    provider = TracerProvider(resource=resource)
+    if _setup_done:
+        if _tracer is None:
+            _tracer = trace.get_tracer("smartqa")
+        return
 
-    # 控制台导出（开发/调试用）
-    provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+    current = trace.get_tracer_provider()
+    # 仅在尚未安装 SDK Provider 时设置，防止 reload 报
+    # "Overriding of current TracerProvider is not allowed"
+    if not isinstance(current, TracerProvider):
+        resource = Resource(attributes={SERVICE_NAME: OTEL_SERVICE_NAME})
+        provider = TracerProvider(resource=resource)
+        # 开发环境默认不往控制台刷 span，避免噪音；有 OTLP 再导出
+        if OTEL_EXPORTER_OTLP_ENDPOINT:
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-    # OTLP 导出（生产环境，对接 Jaeger/Grafana Tempo 等）
-    if OTEL_EXPORTER_OTLP_ENDPOINT:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        otlp_exporter = OTLPSpanExporter(endpoint=OTEL_EXPORTER_OTLP_ENDPOINT)
-        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+            otlp_exporter = OTLPSpanExporter(endpoint=OTEL_EXPORTER_OTLP_ENDPOINT)
+            provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+        else:
+            # 静默 provider：无 exporter，仅保证 get_tracer 可用
+            pass
+        trace.set_tracer_provider(provider)
 
-    trace.set_tracer_provider(provider)
+    # 避免重复 instrument
+    if not getattr(app.state, "_otel_instrumented", False):
+        try:
+            FastAPIInstrumentor.instrument_app(app)
+            app.state._otel_instrumented = True
+        except Exception:
+            # 已 instrument 时忽略
+            app.state._otel_instrumented = True
 
-    # FastAPI 自动埋点
-    FastAPIInstrumentor.instrument_app(app)
-
-    global _tracer
-    _tracer = trace.get_tracer(__name__)
-
+    _tracer = trace.get_tracer("smartqa")
+    _setup_done = True
     print(f"  OpenTelemetry: 就绪 (service={OTEL_SERVICE_NAME})")
 
 
@@ -49,5 +61,5 @@ def get_tracer() -> trace.Tracer:
     """获取全局 Tracer 实例"""
     global _tracer
     if _tracer is None:
-        _tracer = trace.get_tracer(__name__)
+        _tracer = trace.get_tracer("smartqa")
     return _tracer

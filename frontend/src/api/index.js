@@ -9,21 +9,45 @@ const api = axios.create({
 // 健康检查
 export const healthCheck = () => api.get('/health')
 
+// 模型供应商
+export const getModels = () => api.get('/models')
+export const switchProvider = (provider) =>
+  api.post('/models/provider', { provider })
+export const saveModelConfig = (config) =>
+  api.put('/models/config', config)
+
 // 发送问题（非流式）
 export const sendMessage = (question, conversationId = null) =>
   api.post('/chat', { question, conversation_id: conversationId })
 
-// 流式发送问题
-export const sendMessageStream = (question, conversationId = null) => {
+// 流式发送问题（pipeline 或 agent）
+export const sendMessageStream = (question, conversationId = null, mode = 'pipeline', datasourceId = null) => {
   const controller = new AbortController()
-  const response = fetch('/api/chat/stream', {
+  const path = mode === 'agent' ? '/chat/agent/stream' : '/chat/stream'
+  const response = fetch(`/api${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, conversation_id: conversationId }),
+    body: JSON.stringify({
+      question,
+      conversation_id: conversationId,
+      datasource_id: datasourceId || null,
+    }),
     signal: controller.signal,
   })
   return { response, controller }
 }
+
+// 数据源管理
+export const listDatasources = () => api.get('/datasources')
+export const createDatasource = (data) => api.post('/datasources', data)
+export const updateDatasource = (id, data) => api.put(`/datasources/${id}`, data)
+export const deleteDatasource = (id) => api.delete(`/datasources/${id}`)
+export const testDatasource = (data) => api.post('/datasources/test', data)
+export const getAuditLogs = (params = {}) => api.get('/datasources/audit/logs', { params })
+
+// Agent 非流式
+export const sendAgentMessage = (question, conversationId = null) =>
+  api.post('/chat/agent', { question, conversation_id: conversationId })
 
 // 获取历史列表
 export const getHistory = () => api.get('/history')
@@ -39,6 +63,12 @@ export const rebuildIndex = () => api.post('/rebuild-index')
 
 // 获取数据集信息
 export const getDatasetInfo = () => api.get('/dataset-info')
+
+// 看板（可按数据源切换）
+export const getDashboardOverview = (datasourceId = null) =>
+  api.get('/dashboard/overview', {
+    params: datasourceId ? { datasource_id: datasourceId } : {},
+  })
 
 // 上传文件
 export const uploadFile = (file, tableName = null, config = {}) => {

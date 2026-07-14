@@ -5,7 +5,7 @@ import hashlib
 import time
 from cachetools import TTLCache
 from app.config import CACHE_MAX_SIZE, CACHE_TTL
-from app.logging import get_logger
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 
