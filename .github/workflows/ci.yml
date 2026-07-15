@@ -31,6 +31,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # RAG 单测 / 上传重建索引会用到本地 embedding；CI 使用 CPU torch
+          pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-ml.txt
 
       - name: Run tests
         run: |
@@ -67,6 +70,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 mypy
           pip install -r requirements.txt
+          # lint 不强制装 torch，避免拖慢 job
 
       - name: Flake8 check
         run: |
@@ -125,5 +129,7 @@ jobs:
           context: ./frontend
           push: false
           tags: smartqa-frontend:ci-${{ github.sha }}
+          build-args: |
+            CACHEBUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

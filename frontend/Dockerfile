@@ -2,6 +2,8 @@
 FROM node:20-alpine AS build
 
 ARG NPM_REGISTRY=https://registry.npmjs.org
+# 变更此参数可强制失效 COPY 层缓存（CI 传入 commit SHA）
+ARG CACHEBUST=1
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -10,6 +12,8 @@ COPY package.json package-lock.json ./
 RUN npm config set registry ${NPM_REGISTRY}
 RUN npm ci
 
+# 显式依赖 CACHEBUST，避免 GHA buildx 误用旧源码层
+RUN echo "cachebust=${CACHEBUST}"
 COPY . .
 RUN npm run build
 
