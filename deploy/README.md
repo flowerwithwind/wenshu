@@ -99,7 +99,39 @@ git push origin master
 | SSH 失败 | 密码/IP/安全组 | 本机 `ssh ubuntu@IP` 先测通 |
 | `permission denied` docker | 用户不在 docker 组 | `usermod -aG docker` 后重登 |
 | `sudo` 要密码 | 脚本里 chown 失败 | 先手动 `chown` `/opt/smartqa` |
+| pull 失败 / `registry-1.docker.io` 超时 | 国内机访问 Docker Hub 不稳定 | 配置镜像加速（见下）后重试 |
 | pull 失败 | Hub 登录/镜像名 | 核对 `DOCKER_USERNAME` 与镜像仓库 |
+
+### 国内服务器 Docker Hub 超时（腾讯云等）
+
+报错示例：
+
+```text
+Get "https://registry-1.docker.io/v2/": ... Timeout exceeded while awaiting headers
+```
+
+在服务器执行（腾讯云推荐内网加速）：
+
+```bash
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<'EOF'
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.1ms.run"
+  ]
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+cd /opt/smartqa
+./remote-up.sh
+# 或: docker compose pull && docker compose up -d
+```
+
+新版本 `remote-up.sh` 会在部署时尽量自动写入上述加速配置。
 | health 超时 | 首次下 embedding 慢 | 看 `docker logs smartqa-backend`，多等几分钟 |
 
 ---
