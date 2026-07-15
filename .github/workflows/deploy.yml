@@ -40,8 +40,7 @@ jobs:
           npm ci
           npm run build
 
-  # 默认只推 Docker Hub（需 Secrets: DOCKER_USERNAME + DOCKER_PASSWORD）
-  # 可选远程部署（另需 SERVER_HOST / SERVER_USER / SERVER_PASSWORD）
+  # Secrets 说明见 deploy/README.md
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -53,6 +52,10 @@ jobs:
       SERVER_USER: ${{ secrets.SERVER_USER }}
       SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
       SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_BASE_URL: ${{ secrets.DEEPSEEK_BASE_URL }}
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
 
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +63,7 @@ jobs:
       - name: Require Docker Hub credentials
         if: env.DOCKER_USERNAME == '' || env.DOCKER_PASSWORD == ''
         run: |
-          echo "::error::请在仓库 Settings → Secrets 配置 DOCKER_USERNAME 与 DOCKER_PASSWORD"
+          echo "::error::请配置 Secrets: DOCKER_USERNAME, DOCKER_PASSWORD"
           exit 1
 
       - name: Set up Docker Buildx
@@ -96,27 +99,100 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to server (optional)
+      - name: Prepare server package
         if: env.SERVER_HOST != ''
-        uses: appleboy/ssh-action@v1.0.3
+        run: |
+          set -euo pipefail
+          rm -rf .deploy-out
+          mkdir -p .deploy-out
+          cp deploy/docker-compose.prod.yml .deploy-out/docker-compose.yml
+          cp deploy/remote-up.sh .deploy-out/remote-up.sh
+          chmod +x .deploy-out/remote-up.sh
+
+          JWT_VAL="${JWT_SECRET_KEY:-}"
+          if [ -z "$JWT_VAL" ]; then
+            JWT_VAL="smartqa-prod-${GITHUB_SHA}"
+          fi
+          BASE_URL="${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+          CORS_VAL="${CORS_ORIGINS:-*}"
+
+          cat > .deploy-out/.env <<EOF
+          DOCKER_USERNAME=${DOCKER_USERNAME}
+          IMAGE_TAG=latest
+          HTTP_PORT=80
+          DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+          DEEPSEEK_BASE_URL=${BASE_URL}
+          DEEPSEEK_MODEL=deepseek-chat
+          JWT_SECRET_KEY=${JWT_VAL}
+          CORS_ORIGINS=${CORS_VAL}
+          EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
+          HF_ENDPOINT=https://hf-mirror.com
+          RETRIEVER_MODE=hybrid
+          EOF
+          # 去掉 heredoc 缩进空格
+          sed -i 's/^[[:space:]]*//' .deploy-out/.env
+
+          printf '%s' "${DOCKER_PASSWORD}" > .deploy-out/.docker_password
+          chmod 600 .deploy-out/.env .deploy-out/.docker_password
+          ls -la .deploy-out
+
+      - name: Require full SSH credentials
+        if: env.SERVER_HOST != '' && (env.SERVER_USER == '' || env.SERVER_PASSWORD == '')
+        run: |
+          echo "::error::已配置 SERVER_HOST，还需 SERVER_USER 与 SERVER_PASSWORD"
+          exit 1
+
+      - name: Upload files to /opt/smartqa
+        if: env.SERVER_HOST != ''
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.SERVER_HOST }}
           username: ${{ env.SERVER_USER }}
           password: ${{ env.SERVER_PASSWORD }}
           port: ${{ env.SERVER_PORT != '' && env.SERVER_PORT || 22 }}
-          script: |
-            cd /opt/smartqa
-            echo "${{ env.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
-            export DOCKER_USERNAME="${{ env.DOCKER_USERNAME }}"
-            docker compose -f deploy/docker-compose.prod.yml pull
-            docker compose -f deploy/docker-compose.prod.yml up -d --remove-orphans
-            docker system prune -f
-            echo "Deploy completed at $(date)"
+          source: ".deploy-out/*"
+          target: "/opt/smartqa"
+          strip_components: 1
+          overwrite: true
 
-      - name: Skip remote deploy notice
+      - name: SSH pull and restart
+        if: env.SERVER_HOST != ''
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          REMOTE_DOCKER_USER: ${{ env.DOCKER_USERNAME }}
+          REMOTE_DOCKER_PASS: ${{ env.DOCKER_PASSWORD }}
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          password: ${{ env.SERVER_PASSWORD }}
+          port: ${{ env.SERVER_PORT != '' && env.SERVER_PORT || 22 }}
+          envs: REMOTE_DOCKER_USER,REMOTE_DOCKER_PASS
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            # 确保目录可写（首次可能由 root 创建）
+            if [ ! -w /opt/smartqa ] 2>/dev/null; then
+              sudo mkdir -p /opt/smartqa
+              sudo chown -R "$(id -u):$(id -g)" /opt/smartqa || true
+            fi
+            cd /opt/smartqa
+            ls -la
+
+            test -f docker-compose.yml
+            test -f .env
+
+            chmod +x remote-up.sh || true
+            export DOCKER_PASSWORD="${REMOTE_DOCKER_PASS}"
+            ./remote-up.sh
+
+            echo "---- docker ps ----"
+            docker ps --filter name=smartqa --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            echo "Deploy finished"
+
+      - name: Images only notice
         if: env.SERVER_HOST == ''
         run: |
-          echo "未配置 SERVER_HOST，已跳过 SSH 远程部署。"
-          echo "镜像已推送到 Docker Hub:"
-          echo "  - ${{ env.DOCKER_USERNAME }}/smartqa-backend:latest"
-          echo "  - ${{ env.DOCKER_USERNAME }}/smartqa-frontend:latest"
+          echo "未配置 SERVER_HOST：仅推送 Docker Hub"
+          echo "  ${{ env.DOCKER_USERNAME }}/smartqa-backend:latest"
+          echo "  ${{ env.DOCKER_USERNAME }}/smartqa-frontend:latest"

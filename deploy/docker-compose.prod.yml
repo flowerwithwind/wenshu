@@ -1,54 +1,56 @@
-version: "3.8"
-
-# 生产编排：与 GitHub Actions 推送的 Docker Hub 镜像对齐
-# 需环境变量: DOCKER_USERNAME, DEEPSEEK_API_KEY, ...
+# SmartQA 生产编排（服务器 /opt/smartqa 使用）
+# 镜像来自 Docker Hub: ${DOCKER_USERNAME}/smartqa-backend|frontend
+# 环境变量见同目录 .env（由 CI 同步或手动创建）
 
 services:
   backend:
-    image: ${DOCKER_USERNAME:-smartqa}/smartqa-backend:latest
+    image: ${DOCKER_USERNAME}/smartqa-backend:${IMAGE_TAG:-latest}
     container_name: smartqa-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
+      - HOST=0.0.0.0
+      - PORT=8000
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-large-zh-v1.5}
       - HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
       - RETRIEVER_MODE=${RETRIEVER_MODE:-hybrid}
-      - HOST=0.0.0.0
-      - PORT=8000
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://127.0.0.1}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-smartqa-prod-change-me}
     volumes:
       - smartqa-chroma:/app/data/chroma_db
       - smartqa-vector:/app/data/vector_db
       - smartqa-conversations:/app/data/conversations
       - smartqa-user-dbs:/app/data/user_dbs
+      - smartqa-datasets:/app/data/datasets
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-    restart: unless-stopped
+      timeout: 15s
+      retries: 8
+      start_period: 300s
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 
   frontend:
-    image: ${DOCKER_USERNAME:-smartqa}/smartqa-frontend:latest
+    image: ${DOCKER_USERNAME}/smartqa-frontend:${IMAGE_TAG:-latest}
     container_name: smartqa-frontend
+    restart: unless-stopped
     ports:
-      - "80:3000"
+      - "${HTTP_PORT:-80}:3000"
     depends_on:
       backend:
-        condition: service_healthy
-    restart: unless-stopped
+        condition: service_started
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
@@ -58,3 +60,4 @@ volumes:
   smartqa-vector:
   smartqa-conversations:
   smartqa-user-dbs:
+  smartqa-datasets:
