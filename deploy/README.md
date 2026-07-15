@@ -1,93 +1,110 @@
-# SmartQA 生产部署
+# SmartQA：GitHub 自动部署
 
-推送 `master` / `main` 后，GitHub Actions 会：
+推送到 `master` / `main` 后，工作流 **Deploy SmartQA** 会自动：
 
-1. 跑测试  
-2. 构建并推送镜像到 **Docker Hub**  
-3. 若配置了服务器 Secrets，则 **SSH 上传 compose + 拉镜像启动**
+1. 跑测试 + 前端 build  
+2. 构建并推送镜像到 Docker Hub  
+3. **上传** `docker-compose.yml` / `.env` / `remote-up.sh` 到服务器 `/opt/smartqa`  
+4. SSH 执行 `docker compose pull && up -d`
 
-服务器目录固定为：`/opt/smartqa`
+也可在 GitHub → **Actions** → **Deploy SmartQA** → **Run workflow** 手动触发。
 
-```
-/opt/smartqa/
-  docker-compose.yml   # 来自 deploy/docker-compose.prod.yml
-  .env                 # 运行时配置（CI 自动生成）
-  remote-up.sh         # 拉镜像并启动
-```
+---
 
-## 1. GitHub Secrets（仓库 Settings → Secrets and variables → Actions）
+## 一、GitHub Secrets（必须）
 
-### 必填
+路径：仓库 **Settings → Secrets and variables → Actions → New repository secret**
 
-| Secret | 说明 |
-|--------|------|
-| `DOCKER_USERNAME` | Docker Hub 用户名 |
-| `DOCKER_PASSWORD` | Docker Hub 密码或 Access Token |
+| 名称 | 必填 | 说明 |
+|------|------|------|
+| `DOCKER_USERNAME` | ✅ | Docker Hub 用户名 |
+| `DOCKER_PASSWORD` | ✅ | Docker Hub 密码或 Access Token |
+| `SERVER_HOST` | ✅ 自动上机 | 服务器公网 IP 或域名 |
+| `SERVER_USER` | ✅ 自动上机 | SSH 用户，如 `ubuntu` |
+| `SERVER_PASSWORD` | ✅ 自动上机 | SSH 密码 |
+| `SERVER_PORT` | 可选 | 默认 `22` |
+| `DEEPSEEK_API_KEY` | 建议 | 写入服务器 `.env`，否则无法真正问数 |
+| `JWT_SECRET_KEY` | 建议 | 生产 JWT 密钥 |
+| `DEEPSEEK_BASE_URL` | 可选 | 默认官方地址 |
+| `CORS_ORIGINS` | 可选 | 默认 `*` |
 
-### 远程部署（你已配置）
+> 若没配 `SERVER_HOST`，流水线**只会推镜像**，不会出现你服务器上的 `docker-compose.yml`。
 
-| Secret | 说明 |
-|--------|------|
-| `SERVER_HOST` | 服务器 IP 或域名 |
-| `SERVER_USER` | SSH 用户（需能执行 docker，或在 docker 组） |
-| `SERVER_PASSWORD` | SSH 密码 |
-| `SERVER_PORT` | 可选，默认 `22` |
+---
 
-### 强烈建议（业务可用）
-
-| Secret | 说明 |
-|--------|------|
-| `DEEPSEEK_API_KEY` | DeepSeek API Key，写入服务器 `.env` |
-| `DEEPSEEK_BASE_URL` | 可选，默认 `https://api.deepseek.com` |
-| `JWT_SECRET_KEY` | 生产 JWT 密钥，勿用默认值 |
-| `CORS_ORIGINS` | 可选；同源反代一般 `*` 即可 |
-
-## 2. 服务器一次性准备
+## 二、服务器一次性准备
 
 ```bash
-# 安装 Docker + Compose 插件
-# 将部署用户加入 docker 组，避免每次 sudo：
-sudo usermod -aG docker $USER
+# 1) 安装 Docker（可用 deploy/install-docker-ubuntu.sh）
+# 2) 当前用户可执行 docker
+sudo usermod -aG docker ubuntu   # 用户名按实际改
+# 重新登录 SSH
 
-# 目录
+# 3) 目录
 sudo mkdir -p /opt/smartqa
-sudo chown -R $USER:$USER /opt/smartqa
+sudo chown -R ubuntu:ubuntu /opt/smartqa
 
-# 开放端口：80（前端）、可选 8000（直连 API）
-sudo ufw allow 80/tcp
+# 4) 防火墙
 sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 8000/tcp
 ```
 
-首次也可手动验通：
+确认：
 
 ```bash
-export DOCKER_USERNAME=你的DockerHub用户名
-docker login
-cd /opt/smartqa
-# 放好 docker-compose.yml 与 .env 后：
-docker compose pull
-docker compose up -d
-curl -s http://127.0.0.1:8000/api/health
-# 浏览器打开 http://服务器IP/
+docker version
+docker compose version
+ls -la /opt/smartqa   # 首次可为空，成功部署后会有文件
 ```
 
-## 3. 访问
+---
 
-| 地址 | 说明 |
-|------|------|
-| `http://SERVER_HOST/` | 前端（nginx，反代 `/api`） |
-| `http://SERVER_HOST:8000/api/health` | 后端健康检查 |
-| `http://SERVER_HOST:8000/docs` | OpenAPI 文档 |
-
-首次启动若需下载 BGE 模型，后端 health 可能要等数分钟，属正常。
-
-## 4. 本地脚本（可选）
+## 三、触发自动部署
 
 ```bash
-# 见 deploy/deploy.sh —— 已对齐 Docker Hub 命名
-export DOCKER_USERNAME=...
-export DOCKER_PASSWORD=...
-export SERVER_HOST=...
-export SERVER_USER=...
-./deploy/deploy.sh --remote
+# 本地有改动时
+git push origin master
+
+# 或 GitHub 网页: Actions → Deploy SmartQA → Run workflow
 ```
+
+看日志步骤：
+
+- `Build and push backend/frontend image` — 镜像是否成功  
+- `Upload bundle to server` — 是否上传到 `/opt/smartqa`  
+- `Extract pull and start on server` — 是否 pull/up 成功  
+
+部署成功后服务器应有：
+
+```text
+/opt/smartqa/
+  docker-compose.yml
+  .env
+  remote-up.sh
+```
+
+访问：
+
+- `http://SERVER_HOST/` — 前端  
+- `http://SERVER_HOST:8000/api/health` — 健康检查  
+
+---
+
+## 四、常见失败
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| 只有 Hub 推送、服务器仍空 | 未配 `SERVER_HOST` 或值为空 | 检查 Secrets 名称拼写 |
+| SSH 失败 | 密码/IP/安全组 | 本机 `ssh ubuntu@IP` 先测通 |
+| `permission denied` docker | 用户不在 docker 组 | `usermod -aG docker` 后重登 |
+| `sudo` 要密码 | 脚本里 chown 失败 | 先手动 `chown` `/opt/smartqa` |
+| pull 失败 | Hub 登录/镜像名 | 核对 `DOCKER_USERNAME` 与镜像仓库 |
+| health 超时 | 首次下 embedding 慢 | 看 `docker logs smartqa-backend`，多等几分钟 |
+
+---
+
+## 五、与「手动 compose」的关系
+
+- **推荐**：只靠 GitHub 自动上传 + 部署，不要手写冲突配置。  
+- 手动 `docker compose` 仅在 `/opt/smartqa` 已有 `docker-compose.yml` 时可用；没有配置文件就会报 `no configuration file provided`。
