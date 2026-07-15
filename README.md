@@ -57,10 +57,17 @@ DEEPSEEK_API_KEY=sk-your-key-here
 ```bash
 cd backend
 conda activate wenshu
-pip install -r requirements.txt
-python scripts/preprocess.py      # 构建向量索引（首次）
+pip install -r requirements.txt   # 核心：NL2SQL / API（无 torch）
+
+# 可选：本地 BGE 向量检索 + Cross-encoder 精排（体积大，约 1GB+）
+pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-ml.txt
+
+python scripts/preprocess.py      # 构建向量索引（需已装 requirements-ml）
 python -m app.main                # http://localhost:8000
 ```
+
+> **依赖说明**：`torch` / `transformers` **不是** NL2SQL 主路径的硬依赖；仅本地 HuggingFace Embedding（BGE）与精排需要。不装 ML 时 API 仍可启动，RAG 向量检索自动降级。
 
 ### 4. 前端
 

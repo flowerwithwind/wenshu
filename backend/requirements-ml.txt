@@ -1,0 +1,14 @@
+# ===== 本地 Embedding / 精排（可选，体积大）=====
+# 用途:
+#   - HuggingFaceEmbeddings (BAAI/bge-*)  → Chroma 向量检索、语义缓存
+#   - CrossEncoder (bge-reranker-*)       → 混合检索后精排
+#   - scripts/finetune_embedding.py 等离线脚本
+#
+# 推荐安装顺序（CPU 版 torch，避免 CUDA 大包）:
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-ml.txt
+#
+# 不装本文件时：NL2SQL / 数据源 / 认证仍可用；RAG 向量检索自动降级。
+
+transformers==4.47.1
+sentence-transformers==3.3.1

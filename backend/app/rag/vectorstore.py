@@ -33,13 +33,25 @@ class VectorStoreManager:
         self._init_embeddings()
 
     def _init_embeddings(self) -> None:
-        """初始化嵌入模型"""
-        logger.info(f"正在加载嵌入模型: {EMBEDDING_MODEL} ...")
-        self.embedding_model = HuggingFaceEmbeddings(
-            model_name=EMBEDDING_MODEL,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
-        )
+        """初始化嵌入模型。
+
+        依赖 torch + sentence-transformers（见 requirements-ml.txt）。
+        未安装或加载失败时降级：NL2SQL 主路径仍可用，向量检索不可用。
+        """
+        try:
+            logger.info(f"正在加载嵌入模型: {EMBEDDING_MODEL} ...")
+            self.embedding_model = HuggingFaceEmbeddings(
+                model_name=EMBEDDING_MODEL,
+                model_kwargs={"device": "cpu"},
+                encode_kwargs={"normalize_embeddings": True},
+            )
+            logger.info("嵌入模型加载完成")
+        except Exception as e:
+            self.embedding_model = None
+            logger.warning(
+                f"嵌入模型加载失败（RAG 向量检索将不可用）: {e}。"
+                f"如需本地 BGE Embedding，请安装: pip install -r requirements-ml.txt"
+            )
 
     def _release_store(self) -> None:
         """释放内存中的 Chroma 句柄，便于删除目录/集合"""
@@ -109,6 +121,9 @@ class VectorStoreManager:
         """
         expected = len(documents)
         if expected == 0:
+            return 0
+        if self.embedding_model is None:
+            logger.error("嵌入模型未就绪，无法重建向量索引（请安装 requirements-ml.txt）")
             return 0
 
         # 1) 尽量物理清空目录
@@ -185,6 +200,9 @@ class VectorStoreManager:
 
     def load(self) -> bool:
         """加载已持久化的向量存储；损坏时返回 False。"""
+        if self.embedding_model is None:
+            logger.warning("嵌入模型未就绪，跳过向量库加载")
+            return False
         if not os.path.exists(self.persist_dir):
             return False
         try:

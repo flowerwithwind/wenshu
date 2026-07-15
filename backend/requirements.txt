@@ -1,3 +1,7 @@
+# ===== SmartQA 核心依赖（不含本地 GPU/CPU 大模型运行时）=====
+# NL2SQL + FastAPI 主路径只需本文件。
+# 本地 BGE Embedding / Cross-encoder 精排见 requirements-ml.txt
+
 # LangChain RAG Core
 langchain==0.3.13
 langchain-community==0.3.13
@@ -5,17 +9,11 @@ langchain-core==0.3.33
 langchain-openai==0.3.1
 langchain-text-splitters==0.3.5
 
-# Vector Store
+# Vector Store（向量库本身；本地 embedding 模型由 requirements-ml 提供）
 chromadb>=0.6.0
-faiss-cpu==1.9.0.post1
 
-# BM25
+# BM25 关键词检索（纯 Python，无需 torch）
 rank-bm25>=0.2.2
-
-# Embeddings
-torch==2.5.1
-transformers==4.47.1
-sentence-transformers==3.3.1
 
 # Web Framework
 fastapi==0.115.6
@@ -28,12 +26,9 @@ pandas==2.2.3
 numpy<2.0.0
 openpyxl==3.1.5
 pypdf==5.1.0
-beautifulsoup4==4.12.3
-lxml==5.3.0
 requests==2.32.3
 
-# CORS & Env
-starlette==0.41.3
+# Env
 python-dotenv==1.0.1
 
 # Utility
