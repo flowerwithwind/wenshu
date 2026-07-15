@@ -253,8 +253,12 @@ class RAGPipeline:
             return context, docs
 
         # 默认：纯语义检索（向后兼容）
+        if self.retriever is None:
+            return "", []
         context, docs = self.retriever.retrieve_with_context(query)
-        return context, docs if docs else "", []
+        if not docs:
+            return "", []
+        return context, docs
 
     @staticmethod
     def _format_retrieved_docs(docs: list[Document]) -> str:

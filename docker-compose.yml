@@ -21,19 +21,23 @@ services:
       - HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
       - HOST=0.0.0.0
       - PORT=8000
-      - CORS_ORIGINS=*
+      # 浏览器 + credentials 不能用 *；本机开发默认放行前端端口
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173}
       - DATASET_DIR=./data/datasets
       - VECTOR_DB_PATH=./data/vector_db
       - CHROMA_PERSIST_DIR=./data/chroma_db
     volumes:
-      - backend-data:/app/data
-      - ./backend/.env:/app/.env:ro
+      # 不要整目录覆盖 /app/data（会遮住镜像内 CSV 数据集）
+      - backend-chroma:/app/data/chroma_db
+      - backend-vector:/app/data/vector_db
+      - backend-conversations:/app/data/conversations
+      - backend-user-dbs:/app/data/user_dbs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 120s
     restart: unless-stopped
 
   frontend:
@@ -51,4 +55,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  backend-data:
+  backend-chroma:
+  backend-vector:
+  backend-conversations:
+  backend-user-dbs:

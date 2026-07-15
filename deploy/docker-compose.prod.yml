@@ -1,8 +1,11 @@
 version: "3.8"
 
+# 生产编排：与 GitHub Actions 推送的 Docker Hub 镜像对齐
+# 需环境变量: DOCKER_USERNAME, DEEPSEEK_API_KEY, ...
+
 services:
   backend:
-    image: ${DOCKER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY_OWNER:-user}/smartqa-backend:latest
+    image: ${DOCKER_USERNAME:-smartqa}/smartqa-backend:latest
     container_name: smartqa-backend
     ports:
       - "8000:8000"
@@ -15,16 +18,19 @@ services:
       - RETRIEVER_MODE=${RETRIEVER_MODE:-hybrid}
       - HOST=0.0.0.0
       - PORT=8000
-      - CORS_ORIGINS=*
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://127.0.0.1}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
     volumes:
-      - smartqa-data:/app/data
-      - ./backend/.env:/app/.env:ro
+      - smartqa-chroma:/app/data/chroma_db
+      - smartqa-vector:/app/data/vector_db
+      - smartqa-conversations:/app/data/conversations
+      - smartqa-user-dbs:/app/data/user_dbs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -32,19 +38,23 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  nginx:
-    image: nginx:alpine
-    container_name: smartqa-nginx
+  frontend:
+    image: ${DOCKER_USERNAME:-smartqa}/smartqa-frontend:latest
+    container_name: smartqa-frontend
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - smartqa-frontend-dist:/usr/share/nginx/html:ro
+      - "80:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  smartqa-data:
-  smartqa-frontend-dist:
+  smartqa-chroma:
+  smartqa-vector:
+  smartqa-conversations:
+  smartqa-user-dbs:

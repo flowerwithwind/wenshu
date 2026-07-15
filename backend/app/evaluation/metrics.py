@@ -161,13 +161,23 @@ def mrr(retrieved: list[str], relevant: set[str]) -> float:
 
 
 def ndcg_at_k(retrieved, relevant, graded_relevance=None, k=4):
-    if not relevant:
+    """NDCG@K：理想序基于相关文档集合（而非仅 retrieved 列表）。"""
+    if not relevant or k <= 0:
         return 0.0
-    actual = [graded_relevance.get(d, 0.0) if graded_relevance else (1.0 if d in relevant else 0.0) for d in retrieved[:k]]
-    ideal = sorted([graded_relevance.get(d, 0.0) if graded_relevance else 1.0 for d in retrieved], reverse=True)[:k]
-    def dcg(scores):
-        return sum(s / math.log2(i + 2) for i, s in enumerate(scores) if i < len(scores))
-    idcg = dcg(ideal)
+    if graded_relevance:
+        actual = [float(graded_relevance.get(d, 0.0)) for d in retrieved[:k]]
+        ideal_scores = sorted(
+            (float(graded_relevance.get(d, 0.0)) for d in relevant),
+            reverse=True,
+        )[:k]
+    else:
+        actual = [1.0 if d in relevant else 0.0 for d in retrieved[:k]]
+        ideal_scores = [1.0] * min(len(relevant), k)
+
+    def dcg(scores: list[float]) -> float:
+        return sum(s / math.log2(i + 2) for i, s in enumerate(scores))
+
+    idcg = dcg(ideal_scores)
     return dcg(actual) / idcg if idcg > 0 else 0.0
 
 

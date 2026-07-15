@@ -13,7 +13,8 @@ from app.evaluation.benchmark import BenchmarkLoader
 from app.evaluation.runner import EvaluationRunner
 from app.rag.pipeline import get_pipeline
 
-router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
+# 使用独立前缀，避免与 NL2SQL 评测路由 POST /api/evaluation/run 冲突
+router = APIRouter(prefix="/api/evaluation/retrieval", tags=["evaluation-retrieval"])
 
 benchmark = BenchmarkLoader()
 runner: EvaluationRunner | None = None

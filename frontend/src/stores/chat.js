@@ -78,7 +78,11 @@ export const useChatStore = defineStore('chat', () => {
     isLoading.value = true
 
     try {
-      const { data } = await sendMessage(question, currentConversationId.value)
+      const { data } = await sendMessage(
+        question,
+        currentConversationId.value,
+        datasourceId.value,
+      )
       currentConversationId.value = data.conversation_id
 
       messages.value.push({

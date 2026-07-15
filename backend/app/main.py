@@ -120,10 +120,21 @@ app: FastAPI = FastAPI(
 )
 
 # CORS 中间件
+# 浏览器规范：allow_credentials=True 时不能使用 allow_origins=["*"]
+_cors_origins = [o.strip() for o in CORS_ORIGINS if o and o.strip()]
+_cors_credentials = True
+if not _cors_origins or _cors_origins == ["*"]:
+    # 开发默认：放开本机前端；生产请通过 CORS_ORIGINS 显式配置域名
+    _cors_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

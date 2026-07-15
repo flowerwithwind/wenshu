@@ -17,8 +17,16 @@ export const switchProvider = (provider) =>
 export const saveModelConfig = (config) => api.put("/models/config", config);
 
 // 发送问题（非流式）
-export const sendMessage = (question, conversationId = null) =>
-  api.post("/chat", { question, conversation_id: conversationId });
+export const sendMessage = (
+  question,
+  conversationId = null,
+  datasourceId = null,
+) =>
+  api.post("/chat", {
+    question,
+    conversation_id: conversationId,
+    datasource_id: datasourceId || null,
+  });
 
 // 流式发送问题（pipeline 或 agent）
 export const sendMessageStream = (
@@ -32,6 +40,7 @@ export const sendMessageStream = (
   const response = fetch(`/api${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include", // 与 axios withCredentials 对齐，携带 httpOnly Cookie
     body: JSON.stringify({
       question,
       conversation_id: conversationId,
@@ -74,8 +83,16 @@ export const bootstrapKnowledge = (id, { useLlm = false, merge = true } = {}) =>
   });
 
 // Agent 非流式
-export const sendAgentMessage = (question, conversationId = null) =>
-  api.post("/chat/agent", { question, conversation_id: conversationId });
+export const sendAgentMessage = (
+  question,
+  conversationId = null,
+  datasourceId = null,
+) =>
+  api.post("/chat/agent", {
+    question,
+    conversation_id: conversationId,
+    datasource_id: datasourceId || null,
+  });
 
 // 获取历史列表
 export const getHistory = () => api.get("/history");

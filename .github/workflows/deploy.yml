@@ -103,8 +103,9 @@ jobs:
           script: |
             cd /opt/smartqa
             echo "${{ env.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            export DOCKER_USERNAME="${{ env.DOCKER_USERNAME }}"
+            docker compose -f deploy/docker-compose.prod.yml pull
+            docker compose -f deploy/docker-compose.prod.yml up -d --remove-orphans
             docker system prune -f
             echo "Deploy completed at $(date)"
 

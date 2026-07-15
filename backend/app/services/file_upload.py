@@ -9,7 +9,8 @@ from typing import Any
 import pandas as pd
 
 from app.config import DATASET_DIR, MAX_UPLOAD_SIZE_MB
-from app.nl2sql.database import CSV_TABLE_MAP, DB_PATH, infer_sql_type, normalize_column_name
+import app.nl2sql.database as db_module
+from app.nl2sql.database import CSV_TABLE_MAP, infer_sql_type, normalize_column_name
 from app.logger import get_logger
 
 logger = get_logger(__name__)
@@ -78,8 +79,8 @@ def import_to_database(file_path: str, table_name: str) -> dict[str, Any]:
                                   for row in all_rows if i < len(row)]
         col_types[header] = infer_sql_type(col_values)
 
-    # 写入数据库
-    conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
+    # 写入数据库（运行时读取 DB_PATH，避免 import 时绑定导致测试/多库失效）
+    conn: sqlite3.Connection = sqlite3.connect(db_module.DB_PATH)
     conn.row_factory = sqlite3.Row
 
     conn.execute(f"DROP TABLE IF EXISTS [{table_name}]")
