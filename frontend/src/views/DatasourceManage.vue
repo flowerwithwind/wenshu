@@ -550,5 +550,4 @@ onMounted(async () => {
 .modal-actions { display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid #f1f5f9; background: #fafbfc; }
 .spacer { flex: 1; }
 @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
-/* end DatasourceManage styles — single </style> only */
 </style>
