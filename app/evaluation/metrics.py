@@ -1,10 +1,55 @@
 """
-信息检索评估指标
+评估指标 - 包含新旧两套 API（向后兼容）
 """
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass, field
+from typing import Any
 
+from app.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+# ==================== 旧 API（NL2SQL 评估）====================
+
+@dataclass
+class EvalResult:
+    """单个评测用例的结果"""
+    case_id: str
+    question: str
+    ground_truth_sql: str
+    generated_sql: str
+    is_valid_sql: bool
+    execution_success: bool
+    execution_error: str = ""
+    exact_set_match: bool | None = None
+    llm_score: float | None = None
+    llm_judgment: str = ""
+    execution_time_ms: float = 0.0
+
+
+@dataclass
+class EvalSummary:
+    """评测汇总"""
+    total: int = 0
+    valid_sql_count: int = 0
+    execution_success_count: int = 0
+    exact_match_count: int = 0
+    avg_llm_score: float = 0.0
+    results: list[EvalResult] = field(default_factory=list)
+    category_breakdown: dict[str, dict[str, float]] = field(default_factory=dict)
+
+
+def check_sql_validity(sql: str) -> bool:
+    if not sql:
+        return False
+    upper = sql.strip().upper()
+    return upper.startswith("SELECT") or upper.startswith("WITH")
+
+
+# ==================== 新 API（检索评估指标）====================
 
 def recall_at_k(retrieved: list[str], relevant: set[str], k: int) -> float:
     if not relevant:
