@@ -483,7 +483,7 @@ onMounted(async () => {
 .banner.info { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; }
 .btn-x { border: none; background: transparent; cursor: pointer; font-size: 18px; margin-left: auto; }
 .layout { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(320px,0.85fr); gap: 16px; align-items: start; }
-.panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 2px 12px rgba(15,23,42,0.04); overflow: hidden; }
+.panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; transition: box-shadow var(--transition); }
 .panel-head { display: flex; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #f1f5f9; }
 .panel-head h2 { margin: 0 0 4px; font-size: 15px; font-weight: 750; }
 .muted { font-size: 12px; color: #94a3b8; }
@@ -529,10 +529,12 @@ onMounted(async () => {
 .empty-block.compact { padding: 28px 16px; }
 .empty-title { font-size: 14px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
 .btn { border: none; border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
-.btn.primary { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; }
+.btn.primary { background: var(--brand-gradient); color: var(--text-on-brand); box-shadow: 0 6px 16px rgba(79,70,229,0.25); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
 .btn.primary.sm, .btn.ghost.sm { padding: 6px 10px; font-size: 11px; }
-.btn.ghost { background: #fff; border: 1px solid #e2e8f0; color: #475569; }
-.btn.danger { background: #fff; color: #dc2626; border: 1px solid #fecaca; }
+.btn.ghost { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); }
+.btn.ghost:hover { border-color: #c7d2fe; color: var(--primary-deep); }
+.btn.danger { background: var(--bg-card); color: var(--danger); border: 1px solid #fecaca; }
 .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
 .modal { width: min(520px, 100%); background: #fff; border-radius: 18px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(15,23,42,0.2); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #f1f5f9; }

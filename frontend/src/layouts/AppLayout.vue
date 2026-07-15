@@ -138,17 +138,19 @@ function isActive(item) {
 }
 
 .nav-rail {
-  width: 220px;
+  width: 228px;
   height: 100%;
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(180deg, var(--bg-sidebar) 0%, var(--bg-sidebar-elevated) 55%, #0f172a 100%);
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
   padding: 16px 12px;
   flex-shrink: 0;
-  transition: width 0.2s ease;
+  transition: width var(--transition-slow) var(--ease-out);
   z-index: 40;
   overflow: hidden;
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  box-shadow: 4px 0 24px rgba(2, 6, 23, 0.2);
 }
 
 .nav-rail.collapsed {
@@ -166,13 +168,14 @@ function isActive(item) {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #4f46e5, #818cf8);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.35);
 }
 
 .brand-title {
@@ -183,7 +186,7 @@ function isActive(item) {
 
 .brand-sub {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .nav-menu {
@@ -203,18 +206,18 @@ function isActive(item) {
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.15s;
 }
 
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #e2e8f0;
+  transform: translateX(2px);
 }
 
 .nav-item.active {
-  background: rgba(79, 70, 229, 0.25);
+  background: var(--primary-muted);
   color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.4);
 }
 
 .nav-icon {
@@ -294,6 +297,7 @@ function isActive(item) {
 
 .btn-logout-icon:hover {
   color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
 }
 
 .nav-toggle {
@@ -309,6 +313,7 @@ function isActive(item) {
 
 .nav-toggle:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .nav-main {
@@ -319,13 +324,14 @@ function isActive(item) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-subtle) 100%);
 }
 
-/* 子页面（Home / Dashboard 等）填满主区 */
 .nav-main > :deep(*) {
   flex: 1;
   min-height: 0;
   min-width: 0;
+  animation: fadeIn 0.28s var(--ease-out);
 }
 
 @media (max-width: 1024px) {

@@ -513,7 +513,7 @@ onMounted(async () => {
   font-size: 16px;
 }
 
-.stat-icon.revenue { background: #eef2ff; color: #4f46e5; }
+.stat-icon.revenue { background: var(--primary-light); color: var(--primary); }
 .stat-icon.orders { background: #ecfdf5; color: #10b981; }
 .stat-icon.customers { background: #ecfeff; color: #0891b2; }
 .stat-icon.refund { background: #fef2f2; color: #ef4444; }

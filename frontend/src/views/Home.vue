@@ -436,13 +436,15 @@ onMounted(() => {
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #334155;
-  background: #fff;
+  color: var(--text);
+  background: var(--bg-card);
   outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .ds-select:focus {
-  border-color: #a5b4fc;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-muted);
 }
 
 /* ===== 侧边栏 ===== */
@@ -482,8 +484,8 @@ onMounted(() => {
   gap: 8px;
   width: 100%;
   padding: 11px 16px;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: #fff;
+  background: var(--brand-gradient);
+  color: var(--text-on-brand);
   border: none;
   border-radius: 12px;
   font-size: 14px;
@@ -527,7 +529,7 @@ onMounted(() => {
 }
 
 .history-item.active {
-  background: rgba(79, 70, 229, 0.2);
+  background: var(--primary-muted);
 }
 
 .history-item-text {

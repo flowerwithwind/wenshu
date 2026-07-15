@@ -373,24 +373,31 @@ code {
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: #fff;
+  background: var(--brand-gradient);
+  color: var(--text-on-brand);
   box-shadow: 0 6px 16px rgba(79, 70, 229, 0.28);
   padding: 10px 16px;
   flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.btn.primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
 }
 
 .btn.ghost {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  color: #475569;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   width: 100%;
+  transition: all var(--transition);
 }
 
 .btn.ghost:hover {
   border-color: #c7d2fe;
-  color: #4338ca;
-  background: #eef2ff;
+  color: var(--primary-deep);
+  background: var(--primary-light);
 }
 
 @media (max-width: 1000px) {
