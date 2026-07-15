@@ -52,6 +52,17 @@ MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
 RETRIEVER_K: int = int(os.getenv("RETRIEVER_K", "4"))
 RETRIEVER_SCORE_THRESHOLD: float = float(os.getenv("RETRIEVER_SCORE_THRESHOLD", "0.0"))
 
+# 检索模式: semantic / bm25 / hybrid
+RETRIEVER_MODE: str = os.getenv("RETRIEVER_MODE", "hybrid")
+
+# 混合检索权重 (语义 vs BM25)
+HYBRID_ALPHA: float = float(os.getenv("HYBRID_ALPHA", "0.7"))
+
+# Cross-encoder 精排
+RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+RERANKER_DEVICE: str = os.getenv("RERANKER_DEVICE", "cpu")
+RERANKER_TOP_K: int = int(os.getenv("RERANKER_TOP_K", "4"))
+
 # 服务配置
 HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = int(os.getenv("PORT", "8000"))
@@ -67,6 +78,9 @@ CACHE_TTL: int = int(os.getenv("CACHE_TTL", "1800"))
 # 限流配置
 RATE_LIMIT_MAX_REQUESTS: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "60"))
 RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+
+# Embedding 微调模型路径
+EMBEDDING_FINETUNED_PATH: str = _path_from_env("EMBEDDING_FINETUNED_PATH", "data/models/finetuned-bge")
 
 # OpenTelemetry 配置
 OTEL_SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME", "smartqa")

@@ -88,6 +88,15 @@ backend/data/_kaggle_tmp/
 backend/data/data/
 *.db
 
+# 训练产出
+backend/data/training/
+backend/data/models/
+backend/data/memory_store/
+
+# 部署配置（不含敏感信息）
+!.github/workflows/deploy.yml
+!deploy/
+
 # 前端
 frontend/node_modules/
 frontend/dist/

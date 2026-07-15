@@ -36,6 +36,7 @@ from app.routes.knowledge import knowledge_router
 from app.routes.analytics import analytics_router
 from app.routes.feedback import feedback_router
 from app.routes.evaluation import evaluation_router
+from app.routes.evaluation_v2 import router as evaluation_v2_router
 from app.routes.models import models_router
 from app.routes.datasource import datasource_router
 from app.routes.auth import auth_router
@@ -139,7 +140,6 @@ async def request_context_middleware(request: Request, call_next) -> Response:
     try:
         await check_rate_limit(request)
     except RateLimitExceededError as e:
-        # 限流超限直接返回 429，不再向上传播
         logger.warning(f"限流触发: {request.client.host if request.client else 'unknown'}")
         return JSONResponse(
             status_code=429,
@@ -159,6 +159,7 @@ _ALL_ROUTERS = [
     analytics_router,
     feedback_router,
     evaluation_router,
+    evaluation_v2_router,
     models_router,
     datasource_router,
     auth_router,

@@ -1,0 +1,162 @@
+[
+  {
+    "id": "eval_001",
+    "question": "上个月销量最高的产品是什么？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["ORDER BY", "DESC", "LIMIT"],
+    "expected_answer_contains": ["销量"],
+    "relevant_doc_keywords": ["orders", "products", "销量"]
+  },
+  {
+    "id": "eval_002",
+    "question": "今年每个月的总销售额趋势如何？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["GROUP BY", "SUM", "strftime"],
+    "expected_answer_contains": ["趋势", "月"],
+    "relevant_doc_keywords": ["orders", "销售额"]
+  },
+  {
+    "id": "eval_003",
+    "question": "哪些客户的消费金额超过了平均消费水平？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["AVG", "HAVING", "GROUP BY"],
+    "expected_answer_contains": ["客户", "消费"],
+    "relevant_doc_keywords": ["customers", "orders"]
+  },
+  {
+    "id": "eval_004",
+    "question": "库存量低于10的商品有哪些？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["stock", "WHERE", "<"],
+    "expected_answer_contains": ["库存"],
+    "relevant_doc_keywords": ["products", "库存"]
+  },
+  {
+    "id": "eval_005",
+    "question": "退货率最高的产品类别是什么？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["JOIN", "GROUP BY", "COUNT"],
+    "expected_answer_contains": ["退货", "类别"],
+    "relevant_doc_keywords": ["refunds", "products"]
+  },
+  {
+    "id": "eval_006",
+    "question": "上季度新注册的客户有多少？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["COUNT", "created_at"],
+    "expected_answer_contains": ["新注册", "客户"],
+    "relevant_doc_keywords": ["customers", "注册"]
+  },
+  {
+    "id": "eval_007",
+    "question": "哪个供应商的产品种类最多？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["GROUP BY", "COUNT", "ORDER BY"],
+    "expected_answer_contains": ["供应商", "种类"],
+    "relevant_doc_keywords": ["products", "supplier"]
+  },
+  {
+    "id": "eval_008",
+    "question": "最近30天日均订单量是多少？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["COUNT", "strftime", "30"],
+    "expected_answer_contains": ["日均", "订单"],
+    "relevant_doc_keywords": ["orders", "订单"]
+  },
+  {
+    "id": "eval_009",
+    "question": "各城市的销售额排名是怎样的？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["GROUP BY", "ORDER BY", "SUM"],
+    "expected_answer_contains": ["城市", "排名"],
+    "relevant_doc_keywords": ["orders", "customers", "city"]
+  },
+  {
+    "id": "eval_010",
+    "question": "客单价最高的前10笔订单是哪些？",
+    "category": "sql_generation",
+    "expected_sql_contains": ["ORDER BY", "DESC", "LIMIT", "price"],
+    "expected_answer_contains": ["客单价", "订单"],
+    "relevant_doc_keywords": ["orders", "products", "price"]
+  },
+  {
+    "id": "eval_011",
+    "question": "有哪些知识库文档是关于SQL查询优化的？",
+    "category": "rag_retrieval",
+    "expected_sql_contains": [],
+    "expected_answer_contains": ["SQL", "优化"],
+    "relevant_doc_keywords": ["SQL", "优化", "查询"]
+  },
+  {
+    "id": "eval_012",
+    "question": "什么是客单价？如何计算？",
+    "category": "rag_retrieval",
+    "expected_sql_contains": [],
+    "expected_answer_contains": ["客单价"],
+    "relevant_doc_keywords": ["客单价", "计算", "平均"]
+  },
+  {
+    "id": "eval_013",
+    "question": "请解释数据看板中的GMV指标。",
+    "category": "rag_retrieval",
+    "expected_sql_contains": [],
+    "expected_answer_contains": ["GMV"],
+    "relevant_doc_keywords": ["GMV", "看板", "指标"]
+  },
+  {
+    "id": "eval_014",
+    "question": "库存周转率的计算公式是什么？",
+    "category": "rag_retrieval",
+    "expected_sql_contains": [],
+    "expected_answer_contains": ["周转率"],
+    "relevant_doc_keywords": ["库存", "周转率", "计算"]
+  },
+  {
+    "id": "eval_015",
+    "question": "什么是RFM模型？在零售中怎么用？",
+    "category": "rag_retrieval",
+    "expected_sql_contains": [],
+    "expected_answer_contains": ["RFM"],
+    "relevant_doc_keywords": ["RFM", "模型", "零售"]
+  },
+  {
+    "id": "eval_016",
+    "question": "对比去年同期的销售额增长情况。",
+    "category": "hybrid",
+    "expected_sql_contains": ["strftime", "WHERE", "SUM"],
+    "expected_answer_contains": ["同比", "增长"],
+    "relevant_doc_keywords": ["同比", "销售额", "orders"]
+  },
+  {
+    "id": "eval_017",
+    "question": "上个月复购率最高的产品分类是什么？这个分类下哪些产品贡献最大？",
+    "category": "hybrid",
+    "expected_sql_contains": ["GROUP BY", "COUNT", "JOIN"],
+    "expected_answer_contains": ["复购率", "贡献"],
+    "relevant_doc_keywords": ["复购", "产品", "分类"]
+  },
+  {
+    "id": "eval_018",
+    "question": "根据历史数据，预测下个月哪个品类可能需要补货？",
+    "category": "hybrid",
+    "expected_sql_contains": ["GROUP BY", "SUM", "ORDER BY"],
+    "expected_answer_contains": ["补货", "品类"],
+    "relevant_doc_keywords": ["补货", "预测", "库存"]
+  },
+  {
+    "id": "eval_019",
+    "question": "哪些产品的毛利率低于20%？结合知识库中的成本数据一起分析。",
+    "category": "hybrid",
+    "expected_sql_contains": ["计算", "cost", "price"],
+    "expected_answer_contains": ["毛利率", "成本"],
+    "relevant_doc_keywords": ["毛利率", "成本", "products"]
+  },
+  {
+    "id": "eval_020",
+    "question": "最近一个季度的新客户获取成本（CAC）是多少？与行业平均水平对比如何？",
+    "category": "hybrid",
+    "expected_sql_contains": ["COUNT", "cost", "SUM"],
+    "expected_answer_contains": ["CAC", "获取成本"],
+    "relevant_doc_keywords": ["CAC", "客户获取", "成本"]
+  }
+]

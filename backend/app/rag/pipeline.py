@@ -1,5 +1,5 @@
 """
-RAG Pipeline - 完整的检索增强生成流程
+RAG Pipeline - 完整的检索增强生成流程（增强版：支持多路召回 + 精排）
 """
 from __future__ import annotations
 
@@ -9,11 +9,14 @@ import json
 import os
 from typing import Any, Generator
 from langchain_core.documents import Document
-from app.config import DATASET_DIR
+from app.config import DATASET_DIR, RETRIEVER_MODE, HYBRID_ALPHA
 from app.rag.loader import DocumentLoader
 from app.rag.splitter import DocumentSplitter
 from app.rag.vectorstore import VectorStoreManager
 from app.rag.retriever import SmartRetriever
+from app.rag.retriever.bm25_retriever import BM25Retriever
+from app.rag.retriever.hybrid_retriever import HybridRetriever
+from app.rag.retriever.reranker import CrossEncoderReranker
 from app.rag.generator import RAGGenerator
 from app.models.schemas import SourceDocument
 from app.logger import get_logger
@@ -22,13 +25,16 @@ logger = get_logger(__name__)
 
 
 class RAGPipeline:
-    """RAG 完整流程编排器"""
+    """RAG 完整流程编排器（支持语义/BM25/混合检索 + Cross-encoder 精排）"""
 
     def __init__(self) -> None:
         self.loader: DocumentLoader = DocumentLoader(DATASET_DIR)
         self.splitter: DocumentSplitter = DocumentSplitter()
         self.vsm: VectorStoreManager = VectorStoreManager()
         self.retriever: SmartRetriever | None = None
+        self.bm25_retriever: BM25Retriever | None = None
+        self.hybrid_retriever: HybridRetriever | None = None
+        self.reranker: CrossEncoderReranker | None = None
         self.generator: RAGGenerator | None = None
         self._init_components()
 
@@ -49,6 +55,33 @@ class RAGPipeline:
             self.vsm.vector_store = None
 
         self.retriever = SmartRetriever(self.vsm)
+
+        # 初始化 BM25 检索器（仅当向量就绪且有文档时）
+        self.bm25_retriever = BM25Retriever()
+        if self.vsm.is_ready():
+            try:
+                all_docs = self.vsm.vector_store.get()
+                if all_docs and all_docs.get("documents"):
+                    from langchain_core.documents import Document as LCDocument
+                    docs_for_bm25 = [
+                        LCDocument(page_content=doc) for doc in all_docs["documents"]
+                    ]
+                    self.bm25_retriever.fit(docs_for_bm25)
+                    logger.info(f"BM25 索引已构建: {len(docs_for_bm25)} 篇文档")
+            except Exception as e:
+                logger.warning(f"BM25 索引构建失败（已降级）: {e}")
+
+        # 初始化混合检索器
+        if self.bm25_retriever.is_fitted:
+            self.hybrid_retriever = HybridRetriever(
+                semantic_retriever=self.retriever,
+                bm25_retriever=self.bm25_retriever,
+                alpha=HYBRID_ALPHA,
+            )
+            logger.info(f"混合检索器就绪 (alpha={HYBRID_ALPHA})")
+
+        # 初始化 Cross-encoder 精排
+        self.reranker = CrossEncoderReranker()
 
         try:
             self.generator = RAGGenerator()
@@ -173,7 +206,67 @@ class RAGPipeline:
         chunks: list[Document] = self.splitter.split(documents)
         count: int = self.vsm.create_from_documents(chunks)
         logger.info(f"向量索引构建完成，共 {count} 个文本块")
+
+        # 重建 BM25 索引
+        if count > 0 and self.bm25_retriever is not None:
+            self.bm25_retriever.fit(chunks)
+            # 重建混合检索器
+            if self.bm25_retriever.is_fitted:
+                self.hybrid_retriever = HybridRetriever(
+                    semantic_retriever=self.retriever,
+                    bm25_retriever=self.bm25_retriever,
+                    alpha=HYBRID_ALPHA,
+                )
+                logger.info(f"BM25/混合检索索引重建完成: {count} 个文本块")
         return count
+
+    def hybrid_retrieve(
+        self, query: str, k: int = 4
+    ) -> tuple[str, list[Document]]:
+        """
+        混合检索入口（根据 RETRIEVER_MODE 自动选择检索策略）
+
+        Args:
+            query: 查询文本
+            k: 返回数量
+
+        Returns:
+            (context_str, documents)
+
+        策略:
+            - hybrid: 语义+BM25混合检索 → Cross-encoder精排
+            - bm25: 纯BM25检索
+            - semantic: 纯语义检索（与原有行为一致）
+        """
+        mode = RETRIEVER_MODE.lower()
+
+        if mode == "hybrid" and self.hybrid_retriever is not None:
+            docs = self.hybrid_retriever.retrieve(query, k=k * 2)
+            # Cross-encoder 精排
+            if self.reranker is not None and self.reranker.is_ready:
+                docs = self.reranker.rerank(query, docs, top_k=k)
+            # 格式化上下文
+            return self._format_retrieved_docs(docs), docs
+
+        elif mode == "bm25" and self.bm25_retriever is not None:
+            context, docs = self.bm25_retriever.retrieve_with_context(query, k=k)
+            return context, docs
+
+        # 默认：纯语义检索（向后兼容）
+        context, docs = self.retriever.retrieve_with_context(query)
+        return context, docs if docs else "", []
+
+    @staticmethod
+    def _format_retrieved_docs(docs: list[Document]) -> str:
+        """格式化检索结果文档为上下文字符串"""
+        if not docs:
+            return ""
+        context_parts = []
+        for i, doc in enumerate(docs):
+            source = doc.metadata.get("source", "未知")
+            score = doc.metadata.get("hybrid_score") or doc.metadata.get("score", 0)
+            context_parts.append(f"[来源 {i+1}: {source} (score={score})]\n{doc.page_content}")
+        return "\n\n---\n\n".join(context_parts)
 
     def query(
         self, question: str, conversation_id: str | None = None
@@ -183,8 +276,8 @@ class RAGPipeline:
 
         conv_id: str = conversation_id or str(uuid.uuid4())
 
-        # 检索
-        context, docs = self.retriever.retrieve_with_context(question)
+        # 检索（使用混合检索，支持语义/BM25/混合策略）
+        context, docs = self.hybrid_retrieve(question)
 
         # 生成
         if self.generator:
@@ -223,7 +316,7 @@ class RAGPipeline:
         self, question: str
     ) -> Generator[str, None, None]:
         """流式 RAG 查询"""
-        context, docs = self.retriever.retrieve_with_context(question)
+        context, docs = self.hybrid_retrieve(question)
 
         if self.generator:
             yield from self.generator.generate_stream(question, context)

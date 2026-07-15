@@ -1,4 +1,196 @@
 """
+评估对比运行器
+
+支持三种策略对比：
+1. 纯语义检索 (SmartRetriever)
+2. BM25 关键词检索
+3. 混合检索 (HybridRetriever)
+
+输出每种策略下的 Recall@K / Precision@K / MRR / NDCG@K
+"""
+from __future__ import annotations
+
+import time
+import uuid
+from typing import Any
+
+from langchain_core.documents import Document
+from app.evaluation.benchmark import BenchmarkLoader, BenchmarkItem
+from app.evaluation.metrics import MetricsCalculator
+from app.rag.retriever import SmartRetriever
+from app.rag.retriever.bm25_retriever import BM25Retriever
+from app.rag.retriever.hybrid_retriever import HybridRetriever
+from app.rag.retriever.reranker import CrossEncoderReranker
+from app.rag.pipeline import RAGPipeline
+from app.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class EvaluationRunner:
+    """评估对比运行器"""
+
+    def __init__(self, pipeline: RAGPipeline) -> None:
+        self.pipeline = pipeline
+        self.benchmark = BenchmarkLoader()
+        self.metrics = MetricsCalculator()
+
+    def run_all(
+        self,
+        strategies: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        对所有策略运行完整评测
+
+        Args:
+            strategies: 要评测的策略列表，默认所有
+
+        Returns:
+            {
+                "summary": { 各策略平均指标 },
+                "details": { 各策略详细结果 },
+                "best_strategy": "最优策略名"
+            }
+        """
+        if strategies is None:
+            strategies = ["semantic", "bm25", "hybrid", "hybrid_reranked"]
+
+        items = self.benchmark.load()
+        if not items:
+            return {"error": "评测集为空", "details": {}}
+
+        results: dict[str, dict[str, float]] = {}
+        for strategy in strategies:
+            strategy_results = self._run_strategy(strategy, items)
+            results[strategy] = {
+                k: round(v, 4) for k, v in strategy_results.items()
+            }
+
+        # 计算最优策略
+        best = self._find_best(results)
+
+        return {
+            "eval_id": str(uuid.uuid4()),
+            "total_items": len(items),
+            "strategies": strategies,
+            "results": results,
+            "best_strategy": best,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+
+    def _run_strategy(
+        self,
+        strategy: str,
+        items: list[BenchmarkItem],
+    ) -> dict[str, float]:
+        """对单个策略运行评测"""
+        all_metrics: dict[str, list[float]] = {
+            "recall@1": [], "recall@3": [], "recall@5": [],
+            "precision@1": [], "precision@3": [], "precision@5": [],
+            "mrr": [], "ndcg@1": [], "ndcg@3": [], "ndcg@5": [],
+        }
+
+        for item in items:
+            retrieved_docs = self._retrieve(strategy, item.question, k=5)
+            retrieved_ids = self._doc_ids(retrieved_docs)
+            relevant_ids = self._get_relevant_ids(item, retrieved_docs)
+
+            eval_result = self.metrics.evaluate(retrieved_ids, relevant_ids)
+            for metric, value in eval_result.items():
+                if metric in all_metrics:
+                    all_metrics[metric].append(value)
+
+        # 计算平均值
+        avg_metrics = {}
+        for metric, values in all_metrics.items():
+            if values:
+                avg_metrics[metric] = round(sum(values) / len(values), 4)
+            else:
+                avg_metrics[metric] = 0.0
+
+        return avg_metrics
+
+    def _retrieve(
+        self, strategy: str, query: str, k: int = 5
+    ) -> list[Document]:
+        """按策略检索"""
+        try:
+            if strategy == "semantic" and self.pipeline.retriever:
+                return self.pipeline.retriever.retrieve(query, k=k)
+
+            elif strategy == "bm25" and self.pipeline.bm25_retriever:
+                results = self.pipeline.bm25_retriever.retrieve(query, k=k)
+                return [doc for doc, _ in results]
+
+            elif strategy == "hybrid" and self.pipeline.hybrid_retriever:
+                return self.pipeline.hybrid_retriever.retrieve(query, k=k)
+
+            elif strategy == "hybrid_reranked" and self.pipeline.hybrid_retriever:
+                docs = self.pipeline.hybrid_retriever.retrieve(query, k=k * 2)
+                if self.pipeline.reranker and self.pipeline.reranker.is_ready:
+                    docs = self.pipeline.reranker.rerank(query, docs, top_k=k)
+                return docs[:k]
+
+            return []
+        except Exception as e:
+            logger.warning(f"策略 {strategy} 检索失败: {e}")
+            return []
+
+    @staticmethod
+    def _doc_ids(docs: list[Document]) -> list[str]:
+        """提取文档唯一标识"""
+        ids = []
+        for doc in docs:
+            source = doc.metadata.get("source", "unknown")
+            content_hash = str(hash(doc.page_content[:100]))
+            ids.append(f"{source}::{content_hash}")
+        return ids
+
+    @staticmethod
+    def _get_relevant_ids(
+        item: BenchmarkItem,
+        retrieved_docs: list[Document],
+    ) -> set[str]:
+        """
+        基于关键词匹配判断相关文档
+        如果检索结果中包含与 expected_answer_contains 或 relevant_doc_keywords
+        匹配的内容，则视为相关。
+        """
+        relevant = set()
+        keywords = set(item.expected_answer_contains + item.relevant_doc_keywords)
+
+        for doc in retrieved_docs:
+            source = doc.metadata.get("source", "unknown")
+            content_hash = str(hash(doc.page_content[:100]))
+            doc_id = f"{source}::{content_hash}"
+
+            content = doc.page_content.lower()
+            if any(kw.lower() in content for kw in keywords):
+                relevant.add(doc_id)
+
+        return relevant
+
+    @staticmethod
+    def _find_best(
+        results: dict[str, dict[str, float]]
+    ) -> str:
+        """根据平均指标找出最优策略"""
+        best_strategy = "unknown"
+        best_score = -1.0
+
+        for strategy, metrics in results.items():
+            # 综合评分 = mrr * 0.4 + recall@3 * 0.3 + ndcg@3 * 0.3
+            score = (
+                metrics.get("mrr", 0) * 0.4
+                + metrics.get("recall@3", 0) * 0.3
+                + metrics.get("ndcg@3", 0) * 0.3
+            )
+            if score > best_score:
+                best_score = score
+                best_strategy = strategy
+
+        return best_strategy
+"""
 NL2SQL 评估运行器 — 批量评测 NL2SQL Pipeline 的 SQL 生成质量
 
 流程:
