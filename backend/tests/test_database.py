@@ -88,8 +88,8 @@ class TestDatabaseOperations:
         assert "monthly_targets" in schema
         assert "refunds" in schema
 
-    def test_is_database_ready(self):
-        """数据库就绪检查"""
+    def test_is_database_ready(self, test_db):
+        """数据库就绪检查（使用 test_db fixture 覆盖的 DB_PATH）"""
         assert is_database_ready() is True
 
     def test_execute_sql_with_join(self, test_db):

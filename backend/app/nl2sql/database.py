@@ -66,9 +66,14 @@ def infer_sql_type(values: list[str]) -> str:
     return "TEXT"
 
 
-def init_database(db_path: str = DB_PATH) -> sqlite3.Connection:
-    """初始化数据库，从 CSV 文件创建表"""
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+def init_database(db_path: str | None = None) -> sqlite3.Connection:
+    """初始化数据库，从 CSV 文件创建表。
+
+    db_path 默认取当前模块级 DB_PATH（运行时解析，便于测试/多数据源覆盖）。
+    """
+    if db_path is None:
+        db_path = DB_PATH
+    os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
@@ -155,25 +160,32 @@ def _validate_sql_safety(sql: str) -> None:
     validate_sql_safety(sql)
 
 
-def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
-    """获取数据库连接"""
+def get_connection(db_path: str | None = None) -> sqlite3.Connection:
+    """获取数据库连接（db_path 默认取当前模块级 DB_PATH）"""
+    if db_path is None:
+        db_path = DB_PATH
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
-def get_schema_info(db_path: str = DB_PATH) -> str:
+def get_schema_info(db_path: str | None = None) -> str:
     """获取所有表的 Schema 信息（供 NL2SQL 提示词使用）。
 
     - 内置电商库：带中文业务说明与 JOIN 关系
     - 其它 SQLite 文件：自动 introspect 全部用户表
     """
+    if db_path is None:
+        db_path = DB_PATH
     conn: sqlite3.Connection = get_connection(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
 
     schema_parts: list[str] = []
-    is_builtin_ecommerce = os.path.normpath(db_path) == os.path.normpath(DB_PATH)
+    # 比较“内置电商库”路径：用模块导入时的默认路径常量判断会失效，
+    # 这里把带完整 5 表业务说明的条件限定为“路径指向 knowledge.db 且表齐全”。
+    default_builtin = os.path.join(os.path.dirname(DATASET_DIR), "knowledge.db")
+    is_builtin_ecommerce = os.path.normpath(db_path) == os.path.normpath(default_builtin)
 
     if is_builtin_ecommerce:
         for _csv_file, info in CSV_TABLE_MAP.items():
@@ -224,8 +236,10 @@ def get_schema_info(db_path: str = DB_PATH) -> str:
     return "\n".join(schema_parts)
 
 
-def execute_sql(sql: str, db_path: str = DB_PATH) -> tuple[list[dict[str, Any]], list[str]]:
-    """执行 SQL 查询，返回结果行和列名"""
+def execute_sql(sql: str, db_path: str | None = None) -> tuple[list[dict[str, Any]], list[str]]:
+    """执行 SQL 查询，返回结果行和列名（db_path 默认取当前模块级 DB_PATH）"""
+    if db_path is None:
+        db_path = DB_PATH
     _validate_sql_safety(sql)
 
     # SQL 级别缓存（按库路径隔离，避免多数据源串缓存）
@@ -258,8 +272,10 @@ def execute_sql(sql: str, db_path: str = DB_PATH) -> tuple[list[dict[str, Any]],
     return rows, columns
 
 
-def is_database_ready(db_path: str = DB_PATH) -> bool:
-    """检查数据库是否就绪"""
+def is_database_ready(db_path: str | None = None) -> bool:
+    """检查数据库是否就绪（db_path 默认取当前模块级 DB_PATH）"""
+    if db_path is None:
+        db_path = DB_PATH
     if not os.path.exists(db_path):
         return False
     conn: sqlite3.Connection = get_connection(db_path)
