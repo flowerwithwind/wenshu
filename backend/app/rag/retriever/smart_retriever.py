@@ -1,5 +1,5 @@
 """
-检索器模块 - 基于向量相似度的智能检索
+SmartRetriever - 基于向量相似度的语义检索器（原 retriever.py 迁移至此）
 """
 from __future__ import annotations
 
@@ -21,45 +21,35 @@ class SmartRetriever:
         self.k: int = k
         self.score_threshold: float = score_threshold
 
-    def retrieve(self, query: str) -> list[Document]:
+    def retrieve(self, query: str, k: int | None = None) -> list[Document]:
         """检索相关文档"""
         if not self.vsm.is_ready():
             return []
+        k = k or self.k
+        results: list[tuple[Document, float]] = self.vsm.similarity_search_with_score(query, k=k)
 
-        results: list[tuple[Document, float]] = self.vsm.similarity_search_with_score(query, k=self.k)
-
-        # ChromaDB 返回 L2 距离（越小越相似），转换为余弦相似度（0-1，越大越相似）
-        # 归一化向量的 L2 距离 ∈ [0, 2]，相似度 = 1 - distance/2
         scored: list[tuple[Document, float]] = []
         for doc, distance in results:
             similarity: float = max(0.0, min(1.0, 1.0 - distance / 2.0))
             doc.metadata["score"] = round(similarity, 4)
             scored.append((doc, similarity))
 
-        # 过滤低于阈值的结果
         filtered: list[tuple[Document, float]] = [(doc, sim) for doc, sim in scored if sim >= self.score_threshold]
         if filtered:
             filtered.sort(key=lambda x: x[1], reverse=True)
             return [doc for doc, _ in filtered]
 
-        # 无达标结果时，返回前2个
         scored.sort(key=lambda x: x[1], reverse=True)
         return [doc for doc, _ in scored[:2]]
 
-    def retrieve_with_context(
-        self, query: str
-    ) -> tuple[str, list[Document]]:
+    def retrieve_with_context(self, query: str) -> tuple[str, list[Document]]:
         """检索并返回格式化的上下文和源文档列表"""
-        docs: list[Document] = self.retrieve(query)
+        docs = self.retrieve(query)
         if not docs:
             return "", []
-
         context_parts: list[str] = []
         for i, doc in enumerate(docs):
-            source: str = doc.metadata.get("source", "未知")
-            context_parts.append(
-                f"[来源 {i+1}: {source}]\n{doc.page_content}"
-            )
-
+            source = doc.metadata.get("source", "未知")
+            context_parts.append(f"[来源 {i+1}: {source}]\n{doc.page_content}")
         context: str = "\n\n---\n\n".join(context_parts)
         return context, docs

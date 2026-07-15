@@ -21,10 +21,10 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["认证"])
+auth_router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=201)
+@auth_router.post("/register", response_model=UserResponse, status_code=201)
 async def register(body: UserCreate, response: Response) -> UserResponse:
     """用户注册"""
     # 检查用户名是否已存在
@@ -55,7 +55,7 @@ async def register(body: UserCreate, response: Response) -> UserResponse:
     )
 
 
-@router.post("/login", response_model=UserResponse)
+@auth_router.post("/login", response_model=UserResponse)
 async def login(body: UserLogin, response: Response) -> UserResponse:
     """用户登录"""
     user = find_user_by_username(body.username)
@@ -84,14 +84,14 @@ async def login(body: UserLogin, response: Response) -> UserResponse:
     )
 
 
-@router.post("/logout")
+@auth_router.post("/logout")
 async def logout(response: Response) -> dict:
     """登出（清除 Cookie）"""
     response.delete_cookie(key=AUTH_COOKIE_NAME, path="/")
     return {"ok": True, "message": "已登出"}
 
 
-@router.get("/me", response_model=UserResponse)
+@auth_router.get("/me", response_model=UserResponse)
 async def me(user: UserResponse = Depends(require_auth)) -> UserResponse:
     """获取当前登录用户信息"""
     return user
