@@ -551,29 +551,3 @@ onMounted(async () => {
 .spacer { flex: 1; }
 @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
 </style>
-.modal-body { padding: 16px 18px; overflow: auto; }
-.form-tip { margin: 0 0 12px; font-size: 12px; color: #64748b; line-height: 1.5; background: #f8fafc; border-radius: 10px; padding: 10px 12px; }
-.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 650; color: #475569; margin-bottom: 10px; }
-.field input, .field select { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 9px 11px; font-size: 13px; font-family: inherit; }
-.row2 { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
-.check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 8px 0 4px; }
-.form-err { color: #dc2626; font-size: 12px; }
-.form-ok { color: #059669; font-size: 12px; }
-.tables-list { margin-top: 10px; font-size: 12px; color: #475569; line-height: 1.5; }
-.modal-actions { display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid #f1f5f9; background: #fafbfc; }
-.spacer { flex: 1; }
-@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
-</style>
-.modal-body { padding: 16px 18px; overflow: auto; }
-.form-tip { margin: 0 0 12px; font-size: 12px; color: #64748b; line-height: 1.5; background: #f8fafc; border-radius: 10px; padding: 10px 12px; }
-.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 650; color: #475569; margin-bottom: 10px; }
-.field input, .field select { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 9px 11px; font-size: 13px; font-family: inherit; }
-.row2 { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
-.check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 8px 0 4px; }
-.form-err { color: #dc2626; font-size: 12px; }
-.form-ok { color: #059669; font-size: 12px; }
-.tables-list { margin-top: 10px; font-size: 12px; color: #475569; line-height: 1.5; }
-.modal-actions { display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid #f1f5f9; background: #fafbfc; }
-.spacer { flex: 1; }
-@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
-</style>
