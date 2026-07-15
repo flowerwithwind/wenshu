@@ -41,10 +41,10 @@ jobs:
         working-directory: ./backend
         run: python -m pytest tests/ -x --tb=short
 
-      - name: Setup Node 20
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Build frontend
         working-directory: ./frontend
@@ -210,7 +210,8 @@ jobs:
           port: ${{ env.SERVER_PORT != '' && env.SERVER_PORT || 22 }}
           envs: REMOTE_DOCKER_PASS
           script_stop: true
-          command_timeout: 45m
+          # backend 镜像含 torch，国内 mirror 拉取常需 30–90 分钟
+          command_timeout: 90m
           script: |
             set -euo pipefail
             cd /opt/smartqa
@@ -226,7 +227,8 @@ jobs:
             test -f .env
             test -f remote-up.sh
 
-            export DOCKER_PASSWORD="${REMOTE_DOCKER_PASS}"
+            # 国内机 login 常超时，可不传密码；mirror 匿名 pull 公开仓库
+            export DOCKER_PASSWORD="${REMOTE_DOCKER_PASS:-}"
             ./remote-up.sh
 
             echo "==== containers ===="

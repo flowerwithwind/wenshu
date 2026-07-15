@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
-# 在服务器 /opt/smartqa 执行：配置镜像加速 → 登录 → pull → up
+# 在服务器 /opt/smartqa：配置国内镜像加速 →（可选）登录 → pull → up
+# 国内机访问 registry-1.docker.io 常超时：login 失败可忽略，靠 mirror pull
 set -euo pipefail
 
 cd /opt/smartqa
 
 if [[ ! -f docker-compose.yml ]]; then
-  echo "ERROR: missing docker-compose.yml in /opt/smartqa"
+  echo "ERROR: missing docker-compose.yml"
   ls -la || true
   exit 1
 fi
-
 if [[ ! -f .env ]]; then
-  echo "ERROR: missing .env in /opt/smartqa"
+  echo "ERROR: missing .env"
   exit 1
 fi
 
 get_env() {
-  local key="$1"
   local line
-  line="$(grep -E "^${key}=" .env | tail -n1 || true)"
+  line="$(grep -E "^${1}=" .env | tail -n1 || true)"
   echo "${line#*=}"
 }
 
@@ -36,20 +35,21 @@ run_root() {
     "$@"
   elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
     sudo "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
   else
     "$@"
   fi
 }
 
-# ---------- 国内服务器：配置 Docker Hub 镜像加速（避免 registry-1.docker.io 超时）----------
-ensure_registry_mirrors() {
-  echo "==> Ensure Docker registry-mirrors (China-friendly)"
-  local daemon_json="/etc/docker/daemon.json"
-  local tmp
-  tmp="$(mktemp)"
-
-  # 腾讯云 CVM 优先内网加速；再加公共加速
-  cat >"$tmp" <<'EOF'
+# 强制写入可用加速（腾讯云 CVM 内网优先）
+force_registry_mirrors() {
+  echo "==> Configure registry-mirrors (force China-friendly list)"
+  run_root mkdir -p /etc/docker
+  if [[ -f /etc/docker/daemon.json ]]; then
+    run_root cp /etc/docker/daemon.json "/etc/docker/daemon.json.bak.$(date +%s)" || true
+  fi
+  run_root tee /etc/docker/daemon.json >/dev/null <<'EOF'
 {
   "registry-mirrors": [
     "https://mirror.ccs.tencentyun.com",
@@ -57,6 +57,7 @@ ensure_registry_mirrors() {
     "https://docker.1ms.run",
     "https://docker.xuanyuan.me"
   ],
+  "max-concurrent-downloads": 3,
   "log-driver": "json-file",
   "log-opts": {
     "max-size": "10m",
@@ -64,81 +65,75 @@ ensure_registry_mirrors() {
   }
 }
 EOF
-
-  if [[ -f "$daemon_json" ]]; then
-    # 已有 mirrors 则尽量不覆盖用户自定义（简单检测）
-    if grep -q 'registry-mirrors' "$daemon_json" 2>/dev/null; then
-      echo "    daemon.json already has registry-mirrors, keep existing"
-      rm -f "$tmp"
-      return 0
+  run_root systemctl daemon-reload 2>/dev/null || true
+  run_root systemctl restart docker 2>/dev/null || run_root service docker restart 2>/dev/null || true
+  echo "    waiting docker after restart..."
+  sleep 5
+  for _ in $(seq 1 30); do
+    if docker info >/dev/null 2>&1; then
+      break
     fi
-    run_root cp "$daemon_json" "${daemon_json}.bak.$(date +%s)" || true
-  fi
-
-  if run_root mkdir -p /etc/docker \
-    && run_root cp "$tmp" "$daemon_json"; then
-    echo "    wrote $daemon_json"
-    run_root systemctl daemon-reload 2>/dev/null || true
-    run_root systemctl restart docker 2>/dev/null || run_root service docker restart 2>/dev/null || true
-    sleep 3
-  else
-    echo "    WARN: cannot write daemon.json (need passwordless sudo?). Configure mirrors manually if pull times out."
-  fi
-  rm -f "$tmp"
+    sleep 2
+  done
+  docker info 2>/dev/null | grep -A8 -i 'Registry Mirrors' || true
 }
 
-docker_login() {
-  echo "==> Docker login as ${DOCKER_USERNAME}"
-  local ok=0
-  local i
-  for i in 1 2 3; do
-    if [[ -f .docker_password ]]; then
-      if cat .docker_password | docker login -u "$DOCKER_USERNAME" --password-stdin; then
-        ok=1
-        break
-      fi
-    elif [[ -n "${DOCKER_PASSWORD:-}" ]]; then
-      if echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin; then
-        ok=1
-        break
-      fi
-    else
-      echo "    no password file/env; skip login (public pull only)"
-      return 0
-    fi
-    echo "    login failed (attempt $i/3), retry in 5s..."
-    sleep 5
-  done
+hub_reachable() {
+  # 2 秒探测，不通就别浪费时间 login
+  timeout 5 bash -c 'echo >/dev/tcp/registry-1.docker.io/443' 2>/dev/null \
+    || curl -fsS -m 5 -o /dev/null https://registry-1.docker.io/v2/ 2>/dev/null
+}
+
+docker_login_optional() {
   rm -f .docker_password 2>/dev/null || true
-  if [[ "$ok" -ne 1 ]]; then
-    echo "WARN: docker login failed (Docker Hub may be blocked). Will still try pull via mirrors."
+  if ! hub_reachable; then
+    echo "==> Skip docker login (registry-1.docker.io unreachable; pull via mirrors)"
+    return 0
   fi
+  if [[ -z "${DOCKER_PASSWORD:-}" && ! -f .docker_password ]]; then
+    echo "==> Skip docker login (no password)"
+    return 0
+  fi
+  echo "==> Docker login as ${DOCKER_USERNAME}"
+  if [[ -f .docker_password ]]; then
+    cat .docker_password | docker login -u "$DOCKER_USERNAME" --password-stdin && return 0
+  fi
+  if [[ -n "${DOCKER_PASSWORD:-}" ]]; then
+    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin && return 0
+  fi
+  echo "WARN: login failed; continue with anonymous/mirror pull"
 }
 
-compose_pull_with_retry() {
-  echo "==> Pull ${DOCKER_USERNAME}/smartqa-*:${IMAGE_TAG}"
+pull_one() {
+  local image="$1"
   local i
-  for i in 1 2 3 4 5; do
-    if docker compose pull; then
-      echo "    pull ok (attempt $i)"
+  echo "    pull $image"
+  for i in 1 2 3 4 5 6; do
+    if docker pull "$image"; then
+      echo "    ok: $image"
       return 0
     fi
-    echo "    pull failed (attempt $i/5)"
+    echo "    fail $image attempt $i/6, sleep $((i * 8))s"
+    sleep $((i * 8))
     if [[ "$i" -eq 2 ]]; then
-      # 第二次失败后再强制写 mirrors 并重启 docker
-      ensure_registry_mirrors
+      force_registry_mirrors
     fi
-    sleep $((i * 5))
   done
-  echo "ERROR: docker compose pull failed after retries."
-  echo "Server cannot reach Docker Hub. On Tencent CVM, ensure daemon.json has mirror.ccs.tencentyun.com"
-  echo "Then: sudo systemctl restart docker && cd /opt/smartqa && docker compose pull"
   return 1
 }
 
-ensure_registry_mirrors
-docker_login
-compose_pull_with_retry
+compose_pull() {
+  local backend="${DOCKER_USERNAME}/smartqa-backend:${IMAGE_TAG}"
+  local frontend="${DOCKER_USERNAME}/smartqa-frontend:${IMAGE_TAG}"
+  echo "==> Pull images (may take 10–40 min for backend with torch)"
+  # 串行更稳，避免双大镜像并行把弱网打挂
+  pull_one "$backend"
+  pull_one "$frontend"
+}
+
+force_registry_mirrors
+docker_login_optional
+compose_pull
 
 echo "==> Up"
 docker compose up -d --remove-orphans
@@ -146,21 +141,21 @@ docker compose up -d --remove-orphans
 echo "==> PS"
 docker compose ps
 
-echo "==> Wait backend health (max ~5 min)"
+echo "==> Wait backend health (max ~8 min)"
 ok=0
-for i in $(seq 1 30); do
+for i in $(seq 1 48); do
   if curl -fsS "http://127.0.0.1:8000/api/health" >/dev/null 2>&1; then
     echo "Backend healthy (attempt $i)"
     ok=1
     break
   fi
-  echo "  waiting... ($i/30)"
+  echo "  waiting health... ($i/48)"
   sleep 10
 done
 
 if [[ "$ok" -ne 1 ]]; then
-  echo "WARN: health not ready; recent logs:"
-  docker compose logs --tail=100 backend || true
+  echo "WARN: health not ready yet (model download may still run). Logs:"
+  docker compose logs --tail=80 backend || true
 fi
 
 docker image prune -f >/dev/null 2>&1 || true

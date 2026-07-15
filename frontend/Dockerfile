@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 
 ARG NPM_REGISTRY=https://registry.npmjs.org
 # 变更此参数可强制失效 COPY 层缓存（CI 传入 commit SHA）
