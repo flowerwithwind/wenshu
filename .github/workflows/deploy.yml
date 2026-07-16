@@ -149,7 +149,8 @@ jobs:
           cat > deploy-bundle/.env <<EOF
           DOCKER_USERNAME=${DOCKER_USERNAME}
           IMAGE_TAG=latest
-          HTTP_PORT=80
+          HTTP_PORT=18080
+          BACKEND_PORT=18000
           DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
           DEEPSEEK_BASE_URL=${BASE_URL}
           DEEPSEEK_MODEL=deepseek-chat
@@ -234,7 +235,7 @@ jobs:
             echo "==== containers ===="
             docker ps --filter name=smartqa --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
             echo "==== health ===="
-            curl -fsS http://127.0.0.1:8000/api/health || echo "(health not ready yet — first boot may download models)"
+            curl -fsS http://127.0.0.1:18000/api/health || echo "(health not ready yet — first boot may download models)"
             echo "Remote deploy finished OK"
 
       - name: Only Hub push (no SERVER_HOST)

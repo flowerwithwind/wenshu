@@ -46,8 +46,8 @@ sudo chown -R ubuntu:ubuntu /opt/smartqa
 
 # 4) 防火墙
 sudo ufw allow 22/tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 8000/tcp
+sudo ufw allow 18080/tcp
+sudo ufw allow 18000/tcp
 ```
 
 确认：
@@ -84,10 +84,10 @@ git push origin master
   remote-up.sh
 ```
 
-访问：
+访问（不常用端口，避免 80/8000 冲突）：
 
-- `http://SERVER_HOST/` — 前端  
-- `http://SERVER_HOST:8000/api/health` — 健康检查  
+- `http://SERVER_HOST:18080/` — 前端  
+- `http://SERVER_HOST:18000/api/health` — 健康检查  
 
 ---
 

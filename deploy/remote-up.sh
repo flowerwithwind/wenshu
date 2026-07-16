@@ -142,14 +142,15 @@ echo "==> PS"
 docker compose ps
 
 echo "==> Wait backend health (max ~8 min)"
+BACKEND_PORT="$(get_env BACKEND_PORT)"; BACKEND_PORT="${BACKEND_PORT:-18000}"
 ok=0
 for i in $(seq 1 48); do
-  if curl -fsS "http://127.0.0.1:8000/api/health" >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/api/health" >/dev/null 2>&1; then
     echo "Backend healthy (attempt $i)"
     ok=1
     break
   fi
-  echo "  waiting health... ($i/48)"
+  echo "  waiting health... ($i/48) :${BACKEND_PORT}"
   sleep 10
 done
 

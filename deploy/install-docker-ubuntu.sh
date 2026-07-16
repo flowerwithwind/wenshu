@@ -99,9 +99,12 @@ sudo chown -R "${USER}:${USER}" /opt/smartqa
 echo "==> [6/6] 防火墙端口（若使用 ufw）"
 if command -v ufw >/dev/null 2>&1; then
   sudo ufw allow 22/tcp || true
-  sudo ufw allow 80/tcp || true
-  sudo ufw allow 8000/tcp || true
-  echo "已放行 22/80/8000（未自动 ufw enable，按需自行开启）"
+  sudo ufw allow 18080/tcp || true
+  sudo ufw allow 18000/tcp || true
+  sudo ufw allow 18001/tcp || true
+  sudo ufw allow 18002/tcp || true
+  sudo ufw allow 18082/tcp || true
+  echo "已放行 22 与 18xxx 业务端口（未自动 ufw enable，按需自行开启）"
 fi
 
 echo ""
