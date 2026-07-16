@@ -127,6 +127,7 @@ function isActive(item) {
 </script>
 
 <style scoped>
+/* Shell sizes in rem so they track the fluid root type scale */
 .app-shell {
   display: flex;
   height: 100vh;
@@ -138,80 +139,81 @@ function isActive(item) {
 }
 
 .nav-rail {
-  width: 228px;
+  width: 14.25rem;
   height: 100%;
   background: linear-gradient(180deg, var(--bg-sidebar) 0%, var(--bg-sidebar-elevated) 55%, #0f172a 100%);
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
-  padding: 16px 12px;
+  padding: var(--space-md) 0.75rem;
   flex-shrink: 0;
   transition: width var(--transition-slow) var(--ease-out);
   z-index: 40;
   overflow: hidden;
   border-right: 1px solid rgba(148, 163, 184, 0.08);
-  box-shadow: 4px 0 24px rgba(2, 6, 23, 0.2);
+  box-shadow: 0.25rem 0 1.5rem rgba(2, 6, 23, 0.2);
 }
 
 .nav-rail.collapsed {
-  width: 72px;
+  width: 4.5rem;
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px 18px;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem 1.125rem;
 }
 
 .brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
   background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
+  font-size: 1rem;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 0.5rem 1.125rem rgba(79, 70, 229, 0.35);
 }
 
 .brand-title {
   font-weight: 800;
-  font-size: 15px;
+  font-size: 0.9375rem;
   letter-spacing: -0.02em;
 }
 
 .brand-sub {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--text-tertiary);
 }
 
 .nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-xs);
   flex: 1;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 12px;
-  border-radius: 12px;
+  gap: 0.625rem;
+  padding: 0.6875rem 0.75rem;
+  border-radius: 0.75rem;
   color: #94a3b8;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #e2e8f0;
-  transform: translateX(2px);
+  transform: translateX(0.125rem);
 }
 
 .nav-item.active {
@@ -222,35 +224,35 @@ function isActive(item) {
 
 .nav-icon {
   display: inline-flex;
-  width: 20px;
+  width: 1.25rem;
   justify-content: center;
   flex-shrink: 0;
 }
 
 .nav-user {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 6px;
+  gap: 0.625rem;
+  padding: 0.5rem 0.375rem;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
   background: rgba(129, 140, 248, 0.25);
   color: #c7d2fe;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 0.8125rem;
   flex-shrink: 0;
 }
 
@@ -260,7 +262,7 @@ function isActive(item) {
 }
 
 .user-name {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #e2e8f0;
   white-space: nowrap;
@@ -272,10 +274,10 @@ function isActive(item) {
   border: none;
   background: none;
   color: #94a3b8;
-  font-size: 12px;
+  font-size: 0.75rem;
   padding: 0;
   cursor: pointer;
-  margin-top: 2px;
+  margin-top: 0.125rem;
 }
 
 .btn-logout:hover {
@@ -287,8 +289,8 @@ function isActive(item) {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: #94a3b8;
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 0.625rem;
+  padding: 0.625rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -301,14 +303,14 @@ function isActive(item) {
 }
 
 .nav-toggle {
-  margin-top: 12px;
+  margin-top: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: #94a3b8;
-  border-radius: 10px;
-  padding: 8px;
+  border-radius: 0.625rem;
+  padding: 0.5rem;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .nav-toggle:hover {
@@ -336,7 +338,7 @@ function isActive(item) {
 
 @media (max-width: 1024px) {
   .nav-rail {
-    width: 72px;
+    width: 4.5rem;
   }
   .nav-rail .brand-text,
   .nav-rail .nav-label,

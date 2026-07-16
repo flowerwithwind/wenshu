@@ -1,5 +1,19 @@
 /* ===== SmartQA Design Tokens (tech-forward, shared) ===== */
+/* Fluid root type scale: 14px@375 → 18px@1440 (see src/scale/fluidRoot.js) */
+html {
+  font-size: clamp(14px, calc(12.5915px + 0.3756vw), 18px);
+}
+
 :root {
+  /* Type scale (rem → scales with html font-size) */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 1rem;
+  --font-size-md: 1.0625rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 1.75rem;
+
   /* Brand */
   --primary: #6366f1;
   --primary-hover: #4f46e5;
@@ -54,12 +68,12 @@
   --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.12);
   --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.12), 0 12px 40px rgba(79, 70, 229, 0.18);
 
-  /* Radius */
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-xs: 6px;
-  --radius-lg: 20px;
-  --radius-xl: 24px;
+  /* Radius (rem scales with root) */
+  --radius: 0.875rem;
+  --radius-sm: 0.625rem;
+  --radius-xs: 0.375rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
   --radius-full: 9999px;
 
   /* Motion */
@@ -68,15 +82,15 @@
   --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
+  /* Spacing (rem → overall density scales with viewport) */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
 
-  /* Breakpoints (documentation / media queries) */
+  /* Breakpoints stay px (viewport media queries) */
   --bp-sm: 640px;
   --bp-md: 768px;
   --bp-lg: 1024px;
@@ -99,6 +113,7 @@ body,
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 1rem;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;

@@ -187,20 +187,20 @@ async function handleSubmit() {
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(48px);
+  filter: blur(3rem);
   opacity: 0.45;
   animation: floatOrb 14s ease-in-out infinite;
 }
 .orb-a {
-  width: min(42vw, 380px);
-  height: min(42vw, 380px);
+  width: min(42vw, 23.75rem);
+  height: min(42vw, 23.75rem);
   left: -6%;
   top: 18%;
   background: rgba(79, 70, 229, 0.5);
 }
 .orb-b {
-  width: min(36vw, 320px);
-  height: min(36vw, 320px);
+  width: min(36vw, 20rem);
+  height: min(36vw, 20rem);
   right: -4%;
   bottom: 12%;
   background: rgba(51, 65, 85, 0.8);
@@ -213,7 +213,7 @@ async function handleSubmit() {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 56px 56px;
+  background-size: 3.5rem 3.5rem;
   mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 15%, transparent 72%);
   opacity: 0.55;
 }
@@ -221,40 +221,40 @@ async function handleSubmit() {
 .login-shell {
   position: relative;
   z-index: 1;
-  width: min(1040px, 100%);
+  width: min(65rem, 100%);
   margin: auto;
   display: grid;
   grid-template-columns: 1.05fr 0.9fr;
-  gap: clamp(28px, 5vw, 64px);
+  gap: clamp(1.75rem, 5vw, 4rem);
   align-items: center;
-  padding: clamp(12px, 2vw, 28px) 0;
+  padding: clamp(0.75rem, 2vw, 1.75rem) 0;
 }
 
 .login-hero {
-  padding: 8px 4px;
+  padding: 0.5rem 0.25rem;
   animation: fadeIn 0.45s var(--ease-out);
 }
 
 .hero-badge {
   display: inline-flex;
-  padding: 5px 11px;
+  padding: 0.3125rem 0.6875rem;
   border-radius: var(--radius-full);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #c7d2fe;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 18px;
+  margin-bottom: 1.125rem;
 }
 
 .hero-title {
-  font-size: clamp(28px, 4vw, 38px);
+  font-size: clamp(1.75rem, 4vw, 2.375rem);
   font-weight: 800;
   line-height: 1.22;
   letter-spacing: -0.03em;
-  margin-bottom: 14px;
+  margin-bottom: 0.875rem;
 }
 
 .hero-highlight {
@@ -262,29 +262,29 @@ async function handleSubmit() {
 }
 
 .hero-desc {
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.7;
   color: #94a3b8;
   max-width: 40ch;
-  margin-bottom: 22px;
+  margin-bottom: 1.375rem;
 }
 
 .hero-points {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 0.6875rem;
   color: #cbd5e1;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
 .hero-points .dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 0.375rem;
+  height: 0.375rem;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 0.625rem;
   background: #818cf8;
   vertical-align: middle;
 }
@@ -298,13 +298,13 @@ async function handleSubmit() {
 /* —— 方案 B 核心：不透明白卡、大留白、轻阴影 —— */
 .login-card--solid {
   width: 100%;
-  padding: clamp(32px, 4.5vw, 40px) clamp(28px, 4vw, 36px) 32px;
-  border-radius: 16px;
+  padding: clamp(2rem, 4.5vw, 2.5rem) clamp(1.75rem, 4vw, 2.25rem) 2rem;
+  border-radius: 1rem;
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 16px 48px rgba(15, 23, 42, 0.14),
+    0 1px 0.125rem rgba(15, 23, 42, 0.04),
+    0 1rem 3rem rgba(15, 23, 42, 0.14),
     0 0 0 1px rgba(255, 255, 255, 0.06);
   color: var(--text);
   backdrop-filter: none;
@@ -314,27 +314,27 @@ async function handleSubmit() {
 .login-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
   background: linear-gradient(145deg, #4f46e5, #6366f1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 18px;
+  font-size: 1.125rem;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.28);
+  box-shadow: 0 0.375rem 1rem rgba(79, 70, 229, 0.28);
 }
 
 .brand-title {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #0f172a;
@@ -342,9 +342,9 @@ async function handleSubmit() {
 }
 
 .brand-sub {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #94a3b8;
-  margin: 3px 0 0;
+  margin: 0.1875rem 0 0;
   font-weight: 500;
 }
 
@@ -357,7 +357,7 @@ async function handleSubmit() {
   border-bottom: 1px solid #e2e8f0;
   border-radius: 0;
   padding: 0;
-  margin-bottom: 28px;
+  margin-bottom: 1.75rem;
 }
 
 .tab-btn {
@@ -365,9 +365,9 @@ async function handleSubmit() {
   z-index: 1;
   border: none;
   background: transparent;
-  padding: 12px 8px 14px;
+  padding: 0.75rem 0.5rem 0.875rem;
   border-radius: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #94a3b8;
   cursor: pointer;
@@ -388,9 +388,9 @@ async function handleSubmit() {
   bottom: -1px;
   left: 0;
   width: 50%;
-  height: 2px;
+  height: 0.125rem;
   background: #4f46e5;
-  border-radius: 2px 2px 0 0;
+  border-radius: 0.125rem 0.125rem 0 0;
   transition: transform 0.3s var(--ease-out);
 }
 
@@ -402,24 +402,24 @@ async function handleSubmit() {
   background: #fef2f2;
   color: #dc2626;
   border: 1px solid #fecaca;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 13px;
-  margin-bottom: 18px;
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem;
+  margin-bottom: 1.125rem;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 1.25rem;
 }
 
 .form-field label {
   display: block;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #334155;
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
 }
 
 .form-field .optional {
@@ -430,9 +430,9 @@ async function handleSubmit() {
 .form-field input {
   width: 100%;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 14px;
+  border-radius: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
   color: #0f172a;
   background: #fff;
   outline: none;
@@ -449,33 +449,33 @@ async function handleSubmit() {
 
 .form-field input:focus {
   border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 0.1875rem rgba(99, 102, 241, 0.12);
   background: #fff;
 }
 
 /* 沉稳实心主按钮（非花哨渐变条） */
 .submit-btn--solid {
   width: 100%;
-  margin-top: 8px;
-  padding: 12px 16px;
-  font-size: 15px;
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   color: #fff;
   border: none;
-  border-radius: 10px;
+  border-radius: 0.625rem;
   background: #4f46e5;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  gap: 0.5rem;
+  box-shadow: 0 1px 0.125rem rgba(15, 23, 42, 0.06);
   transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
 }
 
 .submit-btn--solid:hover:not(:disabled) {
   background: #4338ca;
-  box-shadow: 0 8px 20px rgba(67, 56, 202, 0.28);
+  box-shadow: 0 0.5rem 1.25rem rgba(67, 56, 202, 0.28);
   transform: translateY(-1px);
 }
 
@@ -491,18 +491,18 @@ async function handleSubmit() {
 }
 
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 1rem;
+  height: 1rem;
+  border: 0.125rem solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
 
 .login-footnote {
-  margin-top: 22px;
+  margin-top: 1.375rem;
   text-align: center;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: #94a3b8;
 }
 
@@ -512,7 +512,7 @@ async function handleSubmit() {
   color: #4f46e5;
   font-weight: 700;
   cursor: pointer;
-  padding: 0 2px;
+  padding: 0 0.125rem;
 }
 
 .linkish:hover {
@@ -532,7 +532,7 @@ async function handleSubmit() {
 }
 .fade-slide-enter-to,
 .fade-slide-leave-from {
-  max-height: 120px;
+  max-height: 7.5rem;
 }
 
 @media (max-width: 900px) {
@@ -558,10 +558,10 @@ async function handleSubmit() {
 
 @media (max-width: 480px) {
   .login-page {
-    padding: 16px 12px;
+    padding: 1rem 0.75rem;
   }
   .login-card--solid {
-    padding: 28px 20px 24px;
+    padding: 1.75rem 1.25rem 1.5rem;
   }
 }
 </style>

@@ -432,9 +432,9 @@ onMounted(() => {
 .ds-select {
   max-width: 200px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 12px;
+  border-radius: 0.625rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
   background: var(--bg-card);
@@ -444,12 +444,12 @@ onMounted(() => {
 
 .ds-select:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px var(--primary-muted);
+  box-shadow: 0 0 0 0.1875rem var(--primary-muted);
 }
 
 /* ===== 侧边栏 ===== */
 .sidebar {
-  width: 280px;
+  width: 17.5rem;
   min-width: 280px;
   height: 100%;
   background: var(--bg-sidebar);
@@ -462,18 +462,18 @@ onMounted(() => {
 }
 
 .sidebar-header {
-  padding: 20px;
+  padding: 1.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 18px;
+  gap: 0.625rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
   letter-spacing: -0.02em;
 }
 
@@ -481,18 +481,18 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 0.5rem;
   width: 100%;
-  padding: 11px 16px;
+  padding: 0.6875rem 1rem;
   background: var(--brand-gradient);
   color: var(--text-on-brand);
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition);
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 0.25rem 0.875rem rgba(79, 70, 229, 0.35);
 }
 
 .btn-new-chat:hover {
@@ -503,25 +503,25 @@ onMounted(() => {
 .history-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 0.75rem;
 }
 
 .history-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #64748b;
-  padding: 8px 8px 12px;
+  padding: 0.5rem 0.5rem 0.75rem;
 }
 
 .history-item {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
+  padding: 0.625rem 0.75rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s;
-  margin-bottom: 2px;
+  margin-bottom: 0.125rem;
 }
 
 .history-item:hover {
@@ -534,7 +534,7 @@ onMounted(() => {
 
 .history-item-text {
   flex: 1;
-  font-size: 13px;
+  font-size: 0.8125rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -546,8 +546,8 @@ onMounted(() => {
   border: none;
   color: #64748b;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -562,55 +562,55 @@ onMounted(() => {
 }
 
 .history-empty {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: #64748b;
   text-align: center;
-  padding: 24px 0;
+  padding: 1.5rem 0;
 }
 
 .sidebar-footer {
-  padding: 16px 20px;
+  padding: 1rem 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
   color: #94a3b8;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   background: #64748b;
 }
 
 .status-dot.online {
   background: var(--success);
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 0.375rem rgba(16, 185, 129, 0.5);
 }
 
 .sidebar-upload {
-  padding: 0 12px 12px;
+  padding: 0 0.75rem 0.75rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-km {
-  padding: 0 12px 12px;
+  padding: 0 0.75rem 0.75rem;
 }
 
 .btn-knowledge {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.375rem;
   width: 100%;
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.06);
   color: #94a3b8;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: all var(--transition);
 }
@@ -638,10 +638,10 @@ onMounted(() => {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
   background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(0.75rem);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   z-index: 5;
@@ -650,7 +650,7 @@ onMounted(() => {
 .topbar-center {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   flex-wrap: wrap;
 }
 
@@ -659,8 +659,8 @@ onMounted(() => {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 0.375rem;
+  border-radius: 0.375rem;
   display: none;
 }
 
@@ -674,24 +674,24 @@ onMounted(() => {
   align-items: center;
   background: #f1f5f9;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 3px;
+  border-radius: 0.625rem;
+  padding: 0.1875rem;
 }
 .mode-btn {
   border: none;
   background: transparent;
   color: #64748b;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.15s;
 }
 .mode-btn.active {
   background: #fff;
   color: var(--primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.08);
 }
 .mode-btn:disabled {
   opacity: 0.5;
@@ -699,7 +699,7 @@ onMounted(() => {
 }
 
 .title {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 700;
   flex: 1;
   letter-spacing: -0.02em;
@@ -712,12 +712,12 @@ onMounted(() => {
 .dashboard-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
   background: var(--primary-light);
   color: var(--primary);
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   text-decoration: none;
   transition: all var(--transition);
@@ -731,15 +731,15 @@ onMounted(() => {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .response-badge {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--success);
   background: #ecfdf5;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 0.25rem 0.625rem;
+  border-radius: 1.25rem;
   font-weight: 500;
 }
 
@@ -749,7 +749,7 @@ onMounted(() => {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 24px 20px 12px;
+  padding: 1.5rem 1.25rem 0.75rem;
   scroll-behavior: smooth;
   background:
     radial-gradient(
@@ -773,63 +773,63 @@ onMounted(() => {
   justify-content: center;
   height: 100%;
   text-align: center;
-  padding: 40px 20px;
+  padding: 2.5rem 1.25rem;
 }
 
 .welcome-icon {
-  width: 112px;
-  height: 112px;
+  width: 7rem;
+  height: 7rem;
   background: linear-gradient(145deg, #eef2ff, #e0e7ff);
-  border-radius: 32px;
+  border-radius: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
-  box-shadow: 0 12px 40px rgba(79, 70, 229, 0.15);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0.75rem 2.5rem rgba(79, 70, 229, 0.15);
 }
 
 .welcome h2 {
-  font-size: 26px;
+  font-size: 1.625rem;
   font-weight: 800;
-  margin-bottom: 10px;
+  margin-bottom: 0.625rem;
   color: var(--text);
   letter-spacing: -0.03em;
 }
 
 .welcome p {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--text-secondary);
   max-width: 480px;
-  margin-bottom: 32px;
+  margin-bottom: 2rem;
   line-height: 1.75;
 }
 
 .example-questions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.625rem;
   justify-content: center;
   max-width: 640px;
 }
 
 .example-label {
   width: 100%;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 0.25rem;
   font-weight: 500;
 }
 
 .example-btn {
-  padding: 10px 16px;
+  padding: 0.625rem 1rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  font-size: 13px;
+  border-radius: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--text);
   cursor: pointer;
   transition: all var(--transition);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 0.125rem rgba(15, 23, 42, 0.04);
 }
 
 .example-btn:hover {
@@ -837,7 +837,7 @@ onMounted(() => {
   background: #eef2ff;
   color: #4338ca;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+  box-shadow: 0 0.25rem 0.75rem rgba(79, 70, 229, 0.12);
   color: var(--primary);
   background: var(--primary-light);
 }
@@ -851,18 +851,18 @@ onMounted(() => {
 .loading-indicator {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: 0.625rem;
+  padding: 1rem 1.25rem;
 }
 
 .typing-dots {
   display: flex;
-  gap: 4px;
+  gap: 0.25rem;
 }
 
 .typing-dots span {
-  width: 8px;
-  height: 8px;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   background: var(--primary);
   animation: pulse 1.4s infinite ease-in-out;
@@ -876,7 +876,7 @@ onMounted(() => {
 }
 
 .loading-text {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--text-secondary);
 }
 
@@ -884,24 +884,24 @@ onMounted(() => {
 .recommended-questions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 0;
-  margin-top: 4px;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  margin-top: 0.25rem;
 }
 
 .recommend-label {
   width: 100%;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  margin-bottom: 2px;
+  margin-bottom: 0.125rem;
 }
 
 .recommend-btn {
-  padding: 6px 14px;
+  padding: 0.375rem 0.875rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  font-size: 13px;
+  border-radius: 1rem;
+  font-size: 0.8125rem;
   color: var(--text);
   cursor: pointer;
   transition: all var(--transition);
@@ -916,14 +916,14 @@ onMounted(() => {
 /* ===== 滚动到底部按钮 ===== */
 .scroll-bottom-btn {
   position: absolute;
-  bottom: 88px;
-  right: 24px;
-  width: 40px;
-  height: 40px;
+  bottom: 5.5rem;
+  right: 1.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
   background: #fff;
   border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -937,13 +937,13 @@ onMounted(() => {
 .scroll-bottom-btn:hover {
   border-color: var(--primary);
   color: var(--primary);
-  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0.25rem 1rem rgba(79, 70, 229, 0.15);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(0.5rem);
   }
   to {
     opacity: 1;
@@ -954,12 +954,12 @@ onMounted(() => {
 /* ===== 输入区：固定在主内容区底部，不随消息滚动 ===== */
 .input-area {
   flex: 0 0 auto;
-  padding: 14px 20px 18px;
+  padding: 0.875rem 1.25rem 1.125rem;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), #fff);
   border-top: 1px solid var(--border);
   z-index: 10;
   /* 底部安全区（移动端刘海屏） */
-  padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(1.125rem, env(safe-area-inset-bottom, 0px));
 }
 
 /* ===== 移动端遮罩 ===== */
@@ -976,12 +976,12 @@ onMounted(() => {
 /* 平板：侧栏默认收起 */
 @media (max-width: 1024px) {
   .sidebar {
-    width: 260px;
+    width: 16.25rem;
     min-width: 260px;
   }
   .topbar-center {
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 0.375rem;
   }
 }
 
@@ -1009,19 +1009,19 @@ onMounted(() => {
   }
 
   .welcome h2 {
-    font-size: 20px;
+    font-size: 1.25rem;
   }
 
   .chat-area {
-    padding: 12px;
+    padding: 0.75rem;
   }
 
   .input-area {
-    padding: 12px;
+    padding: 0.75rem;
   }
 
   .topbar {
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
   }
 
   .ds-select {
@@ -1037,12 +1037,12 @@ onMounted(() => {
   }
 
   .welcome p {
-    font-size: 13px;
+    font-size: 0.8125rem;
   }
 
   .example-btn {
-    font-size: 12px;
-    padding: 8px 12px;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .topbar-center {
@@ -1050,8 +1050,8 @@ onMounted(() => {
   }
 
   .scroll-bottom-btn {
-    bottom: 76px;
-    right: 16px;
+    bottom: 4.75rem;
+    right: 1rem;
   }
 }
 </style>
