@@ -1,15 +1,12 @@
 <template>
   <div class="login-page">
-    <!-- Animated mesh / tech background -->
     <div class="login-bg" aria-hidden="true">
       <div class="orb orb-a"></div>
       <div class="orb orb-b"></div>
-      <div class="orb orb-c"></div>
       <div class="grid-overlay"></div>
     </div>
 
     <div class="login-shell">
-      <!-- Brand storytelling (desktop) -->
       <section class="login-hero">
         <div class="hero-badge">AI Data Copilot</div>
         <h1 class="hero-title">
@@ -17,7 +14,7 @@
           <span class="hero-highlight">问透数据</span>
         </h1>
         <p class="hero-desc">
-          SmartQA 将 NL2SQL、多数据源与知识增强融为一体，提供类 Coze / Dify 的流畅体验与可观测的智能问数流程。
+          SmartQA 将 NL2SQL、多数据源与知识增强融为一体，提供清晰、可观测的智能问数体验。
         </p>
         <ul class="hero-points">
           <li><span class="dot"></span>一句话生成安全 SQL</li>
@@ -26,9 +23,9 @@
         </ul>
       </section>
 
-      <!-- Glass form card -->
+      <!-- 方案 B：纯白抬升卡 · Dify 极简 -->
       <section class="login-panel scale-in">
-        <div class="login-card">
+        <div class="login-card login-card--solid">
           <div class="login-brand">
             <div class="brand-mark">S</div>
             <div class="brand-copy">
@@ -37,7 +34,7 @@
             </div>
           </div>
 
-          <div class="login-tabs" role="tablist">
+          <div class="login-tabs login-tabs--underline" role="tablist">
             <button
               type="button"
               class="tab-btn"
@@ -58,7 +55,7 @@
             >
               注册
             </button>
-            <div class="tab-ink" :class="{ register: isRegister }"></div>
+            <div class="tab-line" :class="{ register: isRegister }"></div>
           </div>
 
           <transition name="fade-slide">
@@ -105,7 +102,7 @@
               </div>
             </transition>
             <button
-              class="submit-btn btn-primary-grad btn-ripple"
+              class="submit-btn submit-btn--solid"
               type="submit"
               :disabled="submitting"
             >
@@ -162,6 +159,7 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
+/* 方案 B：深色 mesh 底 + 纯白抬升卡（Dify 干净风） */
 .login-page {
   position: relative;
   min-height: 100vh;
@@ -171,7 +169,7 @@ async function handleSubmit() {
   align-items: stretch;
   justify-content: center;
   padding: var(--space-lg);
-  background: #070b16;
+  background: #0b1220;
   color: var(--text-inverse);
 }
 
@@ -181,107 +179,93 @@ async function handleSubmit() {
   overflow: hidden;
   pointer-events: none;
   background:
-    var(--mesh-1),
-    var(--mesh-2),
-    var(--mesh-3),
-    linear-gradient(160deg, #070b16 0%, #0f172a 45%, #111827 100%);
+    radial-gradient(ellipse 70% 55% at 15% 25%, rgba(79, 70, 229, 0.35), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 85% 15%, rgba(99, 102, 241, 0.22), transparent 50%),
+    linear-gradient(165deg, #0b1220 0%, #111827 50%, #1e293b 100%);
 }
 
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(40px);
-  opacity: 0.7;
-  animation: floatOrb 12s ease-in-out infinite;
+  filter: blur(48px);
+  opacity: 0.45;
+  animation: floatOrb 14s ease-in-out infinite;
 }
 .orb-a {
-  width: min(48vw, 420px);
-  height: min(48vw, 420px);
-  left: -8%;
-  top: 10%;
-  background: rgba(99, 102, 241, 0.55);
+  width: min(42vw, 380px);
+  height: min(42vw, 380px);
+  left: -6%;
+  top: 18%;
+  background: rgba(79, 70, 229, 0.5);
 }
 .orb-b {
-  width: min(40vw, 360px);
-  height: min(40vw, 360px);
-  right: -6%;
-  top: 20%;
-  background: rgba(34, 211, 238, 0.35);
-  animation-delay: -4s;
-}
-.orb-c {
-  width: min(36vw, 300px);
-  height: min(36vw, 300px);
-  left: 35%;
-  bottom: -10%;
-  background: rgba(168, 85, 247, 0.28);
-  animation-delay: -7s;
+  width: min(36vw, 320px);
+  height: min(36vw, 320px);
+  right: -4%;
+  bottom: 12%;
+  background: rgba(51, 65, 85, 0.8);
+  animation-delay: -5s;
 }
 
 .grid-overlay {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, #000 20%, transparent 75%);
-  opacity: 0.5;
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 15%, transparent 72%);
+  opacity: 0.55;
 }
 
 .login-shell {
   position: relative;
   z-index: 1;
-  width: min(1080px, 100%);
+  width: min(1040px, 100%);
   margin: auto;
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: clamp(24px, 4vw, 56px);
+  grid-template-columns: 1.05fr 0.9fr;
+  gap: clamp(28px, 5vw, 64px);
   align-items: center;
-  padding: clamp(12px, 2vw, 24px) 0;
+  padding: clamp(12px, 2vw, 28px) 0;
 }
 
 .login-hero {
-  padding: 12px 8px 12px 4px;
-  animation: fadeIn 0.5s var(--ease-out);
+  padding: 8px 4px;
+  animation: fadeIn 0.45s var(--ease-out);
 }
 
 .hero-badge {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: var(--radius-full);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #c7d2fe;
-  background: rgba(99, 102, 241, 0.18);
-  border: 1px solid rgba(129, 140, 248, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 18px;
 }
 
 .hero-title {
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: clamp(28px, 4vw, 38px);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.22;
   letter-spacing: -0.03em;
   margin-bottom: 14px;
 }
 
 .hero-highlight {
-  background: linear-gradient(90deg, #a5b4fc, #67e8f9);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #a5b4fc;
 }
 
 .hero-desc {
   font-size: 15px;
   line-height: 1.7;
   color: #94a3b8;
-  max-width: 42ch;
+  max-width: 40ch;
   margin-bottom: 22px;
 }
 
@@ -289,7 +273,7 @@ async function handleSubmit() {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 11px;
   color: #cbd5e1;
   font-size: 14px;
   font-weight: 500;
@@ -297,76 +281,83 @@ async function handleSubmit() {
 
 .hero-points .dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   margin-right: 10px;
-  background: var(--brand-gradient);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.7);
+  background: #818cf8;
+  vertical-align: middle;
 }
 
 .login-panel {
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   margin-left: auto;
 }
 
-.login-card {
+/* —— 方案 B 核心：不透明白卡、大留白、轻阴影 —— */
+.login-card--solid {
   width: 100%;
-  padding: clamp(28px, 4vw, 36px);
-  border-radius: var(--radius-xl);
-  background: var(--bg-glass);
-  backdrop-filter: blur(22px) saturate(1.35);
-  -webkit-backdrop-filter: blur(22px) saturate(1.35);
-  border: 1px solid var(--bg-glass-border);
-  box-shadow: var(--shadow-glow);
+  padding: clamp(32px, 4.5vw, 40px) clamp(28px, 4vw, 36px) 32px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 16px 48px rgba(15, 23, 42, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
   color: var(--text);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .login-brand {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 26px;
+  gap: 12px;
+  margin-bottom: 28px;
 }
 
 .brand-mark {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: var(--brand-gradient);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #4f46e5, #6366f1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 20px;
+  font-size: 18px;
   color: #fff;
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.35);
   flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.28);
 }
 
 .brand-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: #0f172a;
   margin: 0;
 }
 
 .brand-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 2px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 3px 0 0;
+  font-weight: 500;
 }
 
-.login-tabs {
+/* 细线 Tab（非胶囊底） */
+.login-tabs--underline {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: var(--bg);
-  border-radius: var(--radius-sm);
-  padding: 4px;
-  margin-bottom: 20px;
+  background: transparent;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 28px;
 }
 
 .tab-btn {
@@ -374,93 +365,129 @@ async function handleSubmit() {
   z-index: 1;
   border: none;
   background: transparent;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 12px 8px 14px;
+  border-radius: 0;
   font-size: 14px;
-  font-weight: 650;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: #94a3b8;
   cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+.tab-btn:hover {
+  color: #64748b;
 }
 
 .tab-btn.active {
-  color: var(--primary-deep);
+  color: #0f172a;
+  font-weight: 700;
 }
 
-.tab-ink {
+.tab-line {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-xs);
-  transition: transform var(--transition-slow) var(--ease-out);
+  bottom: -1px;
+  left: 0;
+  width: 50%;
+  height: 2px;
+  background: #4f46e5;
+  border-radius: 2px 2px 0 0;
+  transition: transform 0.3s var(--ease-out);
 }
 
-.tab-ink.register {
+.tab-line.register {
   transform: translateX(100%);
 }
 
 .login-error {
-  background: var(--danger-light);
+  background: #fef2f2;
   color: #dc2626;
   border: 1px solid #fecaca;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   padding: 10px 14px;
   font-size: 13px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .form-field label {
   display: block;
   font-size: 13px;
-  font-weight: 650;
-  color: #374151;
-  margin-bottom: 6px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
 }
 
 .form-field .optional {
   font-weight: 400;
-  color: var(--text-tertiary);
+  color: #94a3b8;
 }
 
 .form-field input {
   width: 100%;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   padding: 12px 14px;
   font-size: 14px;
-  color: var(--text);
-  background: var(--bg-input);
+  color: #0f172a;
+  background: #fff;
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-field input::placeholder {
+  color: #94a3b8;
 }
 
 .form-field input:hover {
-  border-color: #c7d2fe;
+  border-color: #cbd5e1;
 }
 
 .form-field input:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.18);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
   background: #fff;
 }
 
-.submit-btn {
+/* 沉稳实心主按钮（非花哨渐变条） */
+.submit-btn--solid {
   width: 100%;
-  padding: 13px;
+  margin-top: 8px;
+  padding: 12px 16px;
   font-size: 15px;
-  margin-top: 6px;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  background: #4f46e5;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.submit-btn--solid:hover:not(:disabled) {
+  background: #4338ca;
+  box-shadow: 0 8px 20px rgba(67, 56, 202, 0.28);
+  transform: translateY(-1px);
+}
+
+.submit-btn--solid:active:not(:disabled) {
+  transform: translateY(0);
+  background: #3730a3;
+}
+
+.submit-btn--solid:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .spinner {
@@ -473,27 +500,26 @@ async function handleSubmit() {
 }
 
 .login-footnote {
-  margin-top: 18px;
+  margin-top: 22px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #94a3b8;
 }
 
 .linkish {
   border: none;
   background: none;
-  color: var(--primary);
+  color: #4f46e5;
   font-weight: 700;
   cursor: pointer;
   padding: 0 2px;
 }
 
 .linkish:hover {
-  color: var(--primary-hover);
+  color: #4338ca;
   text-decoration: underline;
 }
 
-/* transitions for register field / error */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
   transition: all 0.28s var(--ease-out);
@@ -512,11 +538,10 @@ async function handleSubmit() {
 @media (max-width: 900px) {
   .login-shell {
     grid-template-columns: 1fr;
-    max-width: 480px;
+    max-width: 440px;
   }
   .login-hero {
     text-align: center;
-    padding: 8px 4px 0;
   }
   .hero-desc {
     margin-left: auto;
@@ -535,11 +560,8 @@ async function handleSubmit() {
   .login-page {
     padding: 16px 12px;
   }
-  .login-card {
-    padding: 24px 18px;
-  }
-  .hero-title {
-    font-size: 26px;
+  .login-card--solid {
+    padding: 28px 20px 24px;
   }
 }
 </style>

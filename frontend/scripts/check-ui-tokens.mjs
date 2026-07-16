@@ -41,9 +41,11 @@ assertIncludes('Login.vue', login, [
   'authStore.register',
   'isRegister',
   'displayName',
-  'btn-primary-grad',
-  'tab-ink',
   'login-hero',
+  // 方案 B：纯白抬升卡 + 底线 Tab + 实心主按钮
+  'login-card--solid',
+  'tab-line',
+  'submit-btn--solid',
 ])
 
 // Ensure handlers still call store (not inlined fake APIs)
